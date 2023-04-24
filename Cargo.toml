@@ -1,0 +1,12 @@
+[workspace]
+members = [
+"crates/spv-patcher",
+"crates/patch-binding-location-matching",
+"crates/spv-tester",
+"crates/spv-benchmark"
+]
+
+
+[workspace.dependencies]
+rspirv = "0.11"
+thiserror = "1.0"
