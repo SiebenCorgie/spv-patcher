@@ -10,3 +10,4 @@ members = [
 [workspace.dependencies]
 rspirv = "0.11"
 thiserror = "1.0"
+spirt = {git = "https://github.com/EmbarkStudios/spirt.git"}

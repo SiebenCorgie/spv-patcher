@@ -21,38 +21,32 @@
 //! Each of those points can be patched individually. Additionally patches can use a combination of those. For instance, you might want to patch the module with a constant (basically specialization constans).
 //! This touches not just BBs (basic blocks), but possibly CFG (control flow) or resource binding as well.
 
-use thiserror::Error;
+use std::rc::Rc;
 
-#[derive(Debug, Error)]
-pub enum ModuleError {
-    #[error("Failed to parse binary: {0}")]
-    ParseError(#[from] rspirv::binary::ParseState),
-    #[error("Failed to build structured representation: {0:?}")]
-    LiftError(rspirv::lift::ConversionError),
-}
+use spirt::Context;
 
-impl From<rspirv::lift::ConversionError> for ModuleError {
-    fn from(value: rspirv::lift::ConversionError) -> Self {
-        ModuleError::LiftError(value)
-    }
-}
-
+use crate::PatcherError;
 ///Loaded, to be patched module.
-pub struct Module {
-    pub dr: rspirv::dr::Module,
-    pub sr: rspirv::sr::module::Module,
+pub struct Module<'a> {
+    pub(crate) ctx: &'a Rc<Context>,
+    pub(crate) module: spirt::Module,
 }
 
-impl Module {
-    pub fn load(binary: &[u8]) -> Result<Module, ModuleError> {
-        let mut loader = rspirv::dr::Loader::new();
-        {
-            let parser = rspirv::binary::Parser::new(binary, &mut loader);
-            parser.parse()?;
-        }
+impl<'a> Module<'a> {
+    pub fn load(ctx: &'a Rc<Context>, binary: Vec<u8>) -> Result<Module<'a>, PatcherError> {
+        let module = spirt::Module::lower_from_spv_bytes(ctx.clone(), binary)?;
 
-        let dr = loader.module();
-        let sr = rspirv::lift::LiftContext::convert(&dr)?;
-        Ok(Module { dr, sr })
+        Ok(Module { ctx, module })
     }
+
+    //TODO functions
+    // - instruction to line -> Converts instruction to possible OpLine region, which in turn is turned, if found to a string and possibly
+    //   line and / or column.
+    //
+    // - iter basic blocks -> adaptor that iterates all known blocks
+    // - iter entry points -> adaptor that iterates all entry blocks
+    // - iter inputs -> iterates all input variables (everything tagged with StorageClass::Input)
+    // - iter outputs -> iterates all output variables (everything tagged with StorageClass::Output)
+    // - iter bindings -> Iterates all general bindings. Includes not just input / output, but descriptor bindings as well.
+    //
 }
