@@ -11,7 +11,10 @@
 
 use std::rc::Rc;
 
+use patch::Patch;
 use thiserror::Error;
+
+pub use spirt;
 
 pub mod dis_assamble;
 pub mod patch;
@@ -36,10 +39,7 @@ impl Patcher {
     }
 
     ///loads SPIR-V module into this patcher's context.
-    pub fn load_module<'a>(
-        &'a self,
-        spirv_bytes: Vec<u8>,
-    ) -> Result<dis_assamble::Module<'a>, PatcherError> {
+    pub fn load_module(&self, spirv_bytes: Vec<u8>) -> Result<dis_assamble::Module, PatcherError> {
         dis_assamble::Module::load(&self.ctx, spirv_bytes)
     }
 }

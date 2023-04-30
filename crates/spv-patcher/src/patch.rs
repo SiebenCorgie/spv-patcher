@@ -12,12 +12,11 @@
 //                      Can use context information to wire function's arguments.
 
 mod mutate_constant;
+pub use mutate_constant::MutateConstant;
+use spirt::{transform::Transformer, visit::Visitor};
 
-use crate::dis_assamble::Module;
-
-pub trait Patch {
-    type Err: std::error::Error;
-
-    ///Called whenever the patch should be applied to the module.
-    fn patch_module<'a>(&mut self, module: Module<'a>) -> Result<Module<'a>, Self::Err>;
-}
+///A patch is just defined as something that is both, a visitor and a tranformer.
+///
+/// The patcher guarantees that a module is visited before transformed. This makes it possible to first collect information
+/// before actually patching.
+pub trait Patch: Transformer {}

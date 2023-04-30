@@ -8,6 +8,9 @@ members = [
 
 
 [workspace.dependencies]
-rspirv = "0.11"
+#rspirv = "0.11"
 thiserror = "1.0"
-spirt = {git = "https://github.com/EmbarkStudios/spirt.git"}
+#spirt = {git = "https://github.com/EmbarkStudios/spirt.git"}
+spirt = {path = "../spirt"}
+log = "0.4"
+simple_logger = "4.1"
