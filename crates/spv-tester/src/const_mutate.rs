@@ -14,17 +14,18 @@ impl ConstMutateTest {
         Ok(ConstMutateTest { module })
     }
 
-    pub fn patch_i32(&mut self, from: i32, to: i32) -> Result<(), PatcherError> {
-        let mut patch_builder = self.module.patch()?;
+    ///Patches
+    pub fn patch_i32(&mut self, from: u32, to: u32) -> Result<Vec<u32>, PatcherError> {
+        let patch_builder = self.module.patch()?;
 
-        patch_builder = patch_builder
+        let result = patch_builder
             //.print()
-            .patch(MutateConstant::new(1, 42))
+            .patch(MutateConstant::new(from, to))
             .unwrap()
             //.print()
-            ;
+            .assemble();
 
-        Ok(())
+        Ok(result)
     }
 
     pub fn patch_f32(&mut self, from: f32, to: f32) {}

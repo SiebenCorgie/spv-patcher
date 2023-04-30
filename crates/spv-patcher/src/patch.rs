@@ -87,7 +87,7 @@ pub struct Patcher<'module> {
 impl<'module> Patcher<'module> {
     pub fn print(self) -> Self {
         match &self.ir_state {
-            IrState::SpirT { ctx, module } => {
+            IrState::SpirT { ctx: _, module } => {
                 print!(
                     "SPIR-T:\n{}",
                     spirt::print::Plan::for_module(module).pretty_print()
@@ -102,5 +102,13 @@ impl<'module> Patcher<'module> {
 
     pub fn patch(self, to_apply: impl crate::patch::Patch) -> Result<Self, PatcherError> {
         to_apply.apply(self)
+    }
+
+    ///Assembles the patched spriv code. Can be directly loaded into a OpenCL or OpenGL pipeline.
+    pub fn assemble(self) -> Vec<u32> {
+        match self.ir_state {
+            IrState::SpirT { ctx: _, module } => module.lift_to_spv_module_emitter().unwrap().words,
+            IrState::SpirV(spv) => spv.assemble(),
+        }
     }
 }

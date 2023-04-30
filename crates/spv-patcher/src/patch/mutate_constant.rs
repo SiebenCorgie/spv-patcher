@@ -1,6 +1,9 @@
 //! Test patch that mutates a given constant.
 
-use rspirv::{dr::Instruction, spirv::Op};
+use rspirv::{
+    dr::{Instruction, Operand},
+    spirv::Op,
+};
 use spirt::{
     print::Print,
     spv::{Imm, Inst},
@@ -14,12 +17,12 @@ use crate::PatcherError;
 use super::Patch;
 
 pub struct MutateConstant {
-    from: i32,
-    to: i32,
+    from: u32,
+    to: u32,
 }
 
 impl MutateConstant {
-    pub fn new(from: i32, to: i32) -> Self {
+    pub fn new(from: u32, to: u32) -> Self {
         MutateConstant { from, to }
     }
 }
@@ -31,9 +34,18 @@ impl Patch for MutateConstant {
     ) -> Result<super::Patcher<'a>, PatcherError> {
         let spv_mod = patcher.ir_state.as_spirv();
 
-        for c in spv_mod.types_global_values.iter() {
+        for c in spv_mod.types_global_values.iter_mut() {
             if c.class.opcode == Op::Constant {
-                println!("OPCONST: {:?}", c);
+                if let Operand::LiteralInt32(lit) = &mut c.operands[0] {
+                    if *lit == self.from {
+                        log::trace!(
+                            "Mutatet Constant, found right const {} -> {}",
+                            self.from,
+                            self.to
+                        );
+                        *lit = self.to;
+                    }
+                }
             }
         }
 
