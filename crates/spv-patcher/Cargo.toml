@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+rspirv.workspace = true
 spirt.workspace = true
 thiserror.workspace = true
 log.workspace = true
+bytemuck = {workspace = true, features = ["extern_crate_alloc"]}

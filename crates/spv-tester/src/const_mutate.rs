@@ -1,6 +1,4 @@
-use std::path::Path;
-
-use spv_patcher::{dis_assamble::Module, patch::MutateConstant, Patcher, PatcherError};
+use spv_patcher::{patch::MutateConstant, Module, PatcherError};
 
 const CONST_MUTATE_SPV: &'static [u8] = include_bytes!("../resources/compute_add.spv");
 
@@ -11,26 +9,20 @@ pub struct ConstMutateTest {
 impl ConstMutateTest {
     //loads the shader
     pub fn load() -> Result<Self, PatcherError> {
-        let patcher = Patcher::new();
-        let module = patcher.load_module(CONST_MUTATE_SPV.to_vec())?;
+        let module = Module::new(CONST_MUTATE_SPV.to_vec())?;
 
         Ok(ConstMutateTest { module })
     }
 
     pub fn patch_i32(&mut self, from: i32, to: i32) -> Result<(), PatcherError> {
-        let mut patch_builder = self.module.schedule_patches();
+        let mut patch_builder = self.module.patch()?;
 
-        log::trace!("Before: ");
-
-        let ctx = patch_builder.ctx();
         patch_builder = patch_builder
-            .print()
-            .patch(
-                MutateConstant::mut_i32(ctx.as_ref(), from, to)
-                    .expect("Could not build MutateConstantPatch"),
-            )
+            //.print()
+            .patch(MutateConstant::new(1, 42))
             .unwrap()
-            .print();
+            //.print()
+            ;
 
         Ok(())
     }

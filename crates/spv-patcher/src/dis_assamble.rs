@@ -23,74 +23,29 @@
 
 use std::rc::Rc;
 
-use spirt::Context;
+use rspirv::binary::Assemble;
 
-use crate::{patch::Patch, PatcherError};
-///Loaded, to be patched module.
-#[derive(Clone)]
+use crate::{patch::Patcher, PatcherError};
+
 pub struct Module {
-    pub(crate) ctx: Rc<Context>,
-    pub(crate) module: spirt::Module,
+    //Binary SPIR-V template data.
+    module_binary: Vec<u8>,
 }
 
 impl Module {
-    pub fn load(ctx: &Rc<Context>, binary: Vec<u8>) -> Result<Module, PatcherError> {
-        let module = spirt::Module::lower_from_spv_bytes(ctx.clone(), binary)?;
-
+    pub fn new(spirv_binary: Vec<u8>) -> Result<Self, PatcherError> {
         Ok(Module {
-            ctx: ctx.clone(),
-            module,
+            module_binary: spirv_binary,
         })
     }
 
-    ///Schedules a patch run.
-    pub fn schedule_patches(&mut self) -> PatchBuilder {
-        PatchBuilder {
-            module: self.clone(),
-        }
-    }
+    pub fn patch<'a>(&'a self) -> Result<Patcher<'a>, PatcherError> {
+        //try to load into rspirv. This will throw an error if it's malformed.
+        let spirv = rspirv::dr::load_bytes(&self.module_binary)?;
 
-    //TODO functions
-    // - instruction to line -> Converts instruction to possible OpLine region, which in turn is turned, if found to a string and possibly
-    //   line and / or column.
-    //
-    // - iter basic blocks -> adaptor that iterates all known blocks
-    // - iter entry points -> adaptor that iterates all entry blocks
-    // - iter inputs -> iterates all input variables (everything tagged with StorageClass::Input)
-    // - iter outputs -> iterates all output variables (everything tagged with StorageClass::Output)
-    // - iter bindings -> Iterates all general bindings. Includes not just input / output, but descriptor bindings as well.
-    //
-}
-
-pub struct PatchBuilder {
-    module: Module,
-}
-
-impl PatchBuilder {
-    ///Returns the SPIRT context for this patch-builder.
-    pub fn ctx(&self) -> Rc<Context> {
-        self.module.ctx.clone()
-    }
-    pub fn patch(mut self, mut patch: impl Patch) -> Result<Self, PatcherError> {
-        {
-            //patch.visit_module(&self.module.module);
-            patch.in_place_transform_module(&mut self.module.module);
-        }
-        //call path visitor, then transformer.
-        Ok(self)
-    }
-
-    //Prints current state
-    pub fn print(self) -> Self {
-        log::trace!("Printing ...");
-        let plan = spirt::print::Plan::for_module(&self.module.module);
-        log::trace!("{}", plan.pretty_print());
-        self
-    }
-
-    ///Finishes patching and returns the SpirV module
-    pub fn finish(self) -> Vec<u32> {
-        let emitter = self.module.module.lift_to_spv_module_emitter().unwrap();
-        emitter.words
+        Ok(Patcher {
+            module: self,
+            ir_state: crate::patch::IrState::SpirV(spirv),
+        })
     }
 }
