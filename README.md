@@ -2,11 +2,8 @@
 
 # SpirV Patcher
 
-Second iteration of [marp](gitlab.com/tendsinmende/marp). Vulkan wrapper around the [ash](crates.io/crates/ash) crate. Focuses on stable resource creation and usability. Tries to minimized duplication between ash and itself.
+SpirV patching utility operating on the IR level to patch new code, or specialise existing code.
 
-[![pipeline status](https://gitlab.com/tendsinmende/marpii/badges/main/pipeline.svg)](https://gitlab.com/tendsinmende/marpii/-/commits/main)
-[![dependency status](https://deps.rs/repo/gitlab/tendsinmende/marpii/status.svg)](https://deps.rs/repo/gitlab/tendsinmende/marpii)
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/L3L3F09W2)
 </div>
 
 
@@ -19,3 +16,4 @@ Compared to simple linking, this patcher allows not just linking in new function
 - patch code to make it compatible. For instance making [SpirV DXIL compatible]()
 - injecting runtime linked code 
 - make pipeline [stages compatible](https://github.com/expenses/spirv-location-injector)
+- make non-uniform buffer access valid
