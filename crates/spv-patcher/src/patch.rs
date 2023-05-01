@@ -11,16 +11,16 @@
 //     inject-function: replaces a variable assignment with a given function that returns the assign varible's type.
 //                      Can use context information to wire function's arguments.
 
-mod mutate_constant;
-use std::rc::Rc;
+//! Patch utilities and pre-implemented patches.
 
-pub use mutate_constant::MutateConstant;
-use rspirv::binary::Assemble;
+//Test patch
+// TODO: Remove in favor of *correct* patches
+mod mutate_constant;
 
 use crate::PatcherError;
-
-pub struct SpirvPatch;
-pub struct SpirtPatch;
+pub use mutate_constant::MutateConstant;
+use rspirv::binary::Assemble;
+use std::rc::Rc;
 
 pub trait Patch {
     fn apply<'a>(self, patcher: Patcher<'a>) -> Result<Patcher<'a>, PatcherError>;

@@ -1,9 +1,11 @@
 [workspace]
 members = [
 "crates/spv-patcher",
-"crates/patch-binding-location-matching",
 "crates/spv-tester",
-"crates/spv-benchmark"
+"crates/spv-benchmark",
+"crates/patch-binding-location-matching",
+"crates/patch-decorate-nonuniform",
+"crates/patch-function",
 ]
 
 
