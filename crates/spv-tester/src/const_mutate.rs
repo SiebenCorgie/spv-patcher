@@ -20,7 +20,7 @@ impl ConstMutateTest {
 
         let result = patch_builder
             //.print()
-            .patch(MutateConstant::new(from, to))
+            .patch(MutateConstant::Integer { from, to })
             .unwrap()
             //.print()
             .assemble();
@@ -28,5 +28,17 @@ impl ConstMutateTest {
         Ok(result)
     }
 
-    pub fn patch_f32(&mut self, from: f32, to: f32) {}
+    ///Patches
+    pub fn patch_f32(&mut self, from: f32, to: f32) -> Result<Vec<u32>, PatcherError> {
+        let patch_builder = self.module.patch()?;
+
+        let result = patch_builder
+            //.print()
+            .patch(MutateConstant::Float { from, to })
+            .unwrap()
+            //.print()
+            .assemble();
+
+        Ok(result)
+    }
 }

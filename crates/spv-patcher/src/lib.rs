@@ -20,6 +20,7 @@ pub use spirt;
 mod dis_assamble;
 pub use dis_assamble::Module;
 pub mod patch;
+pub mod spirv_ext;
 pub mod verify;
 
 #[derive(Error, Debug)]

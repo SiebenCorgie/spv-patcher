@@ -12,19 +12,13 @@ use spirt::{
     AttrSet, ConstCtor, ConstDef, Context, TypeCtor, TypeDef,
 };
 
-use crate::PatcherError;
+use crate::{spirv_ext::SpirvExt, PatcherError};
 
 use super::Patch;
 
-pub struct MutateConstant {
-    from: u32,
-    to: u32,
-}
-
-impl MutateConstant {
-    pub fn new(from: u32, to: u32) -> Self {
-        MutateConstant { from, to }
-    }
+pub enum MutateConstant {
+    Integer { from: u32, to: u32 },
+    Float { from: f32, to: f32 },
 }
 
 impl Patch for MutateConstant {
@@ -34,17 +28,26 @@ impl Patch for MutateConstant {
     ) -> Result<super::Patcher<'a>, PatcherError> {
         let spv_mod = patcher.ir_state.as_spirv();
 
+        if spv_mod.has_extension("GL_EXT_nonuniform_qualifier") {
+            log::info!("Has extension!");
+        }
+
         for c in spv_mod.types_global_values.iter_mut() {
             if c.class.opcode == Op::Constant {
-                if let Operand::LiteralInt32(lit) = &mut c.operands[0] {
-                    if *lit == self.from {
-                        log::trace!(
-                            "Mutatet Constant, found right const {} -> {}",
-                            self.from,
-                            self.to
-                        );
-                        *lit = self.to;
+                match (&mut c.operands[0], &self) {
+                    (Operand::LiteralInt32(lit), MutateConstant::Integer { from, to }) => {
+                        if *lit == *from {
+                            log::trace!("Mutatet Constant, found right const {} -> {}", from, to);
+                            *lit = *to;
+                        }
                     }
+                    (Operand::LiteralFloat32(lit), MutateConstant::Float { from, to }) => {
+                        if *lit == *from {
+                            log::trace!("Mutatet Constant, found right const {} -> {}", from, to);
+                            *lit = *to;
+                        }
+                    }
+                    _ => {}
                 }
             }
         }

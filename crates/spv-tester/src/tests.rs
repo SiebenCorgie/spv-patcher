@@ -1,6 +1,6 @@
 //! Collects all pre defined tests.
 
-use crate::Test;
+use crate::{print::DisassamblerPrinter, Test};
 
 pub fn parse_test_run(name: &str) -> Option<Test> {
     match name {
@@ -14,6 +14,9 @@ pub fn parse_test_run(name: &str) -> Option<Test> {
                     let mut test = crate::const_mutate::ConstMutateTest::load()
                         .expect("Failed to load ConstMutatePatch");
                     let res = test.patch_i32(1, 42).unwrap();
+
+                    let dis = DisassamblerPrinter::from_bytecode(&res);
+                    log::trace!("Post mutate: {}", dis);
 
                     //check if we have a blessed result, otherwise error out.
                     if blessed.bless {

@@ -13,8 +13,8 @@ use std::{
 ///Constant mutation test. Takes a compute shader and mutates a constant that is added to a buffer.
 mod const_mutate;
 
+mod print;
 mod tests;
-
 use serde::{Deserialize, Serialize};
 
 ///Collects a set of patches that are applied, writes down debug information and test
