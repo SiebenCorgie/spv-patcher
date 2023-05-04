@@ -19,3 +19,7 @@ simple_logger = "4.1"
 bytemuck = "1"
 serde = "1"
 serde_json = "1"
+#our vulkan runtime
+marpii = {git = "https://gitlab.com/tendsinmende/marpii.git"}
+marpii-rmg = {git = "https://gitlab.com/tendsinmende/marpii.git"}
+marpii-rmg-shared = {git = "https://gitlab.com/tendsinmende/marpii.git"}

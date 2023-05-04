@@ -9,9 +9,6 @@
 //! - Verify: Provides custom verification methods, as well as using `spirv-val` to verify a SpirV module.
 //!
 
-use std::rc::Rc;
-
-use patch::Patch;
 use thiserror::Error;
 
 pub use rspirv;

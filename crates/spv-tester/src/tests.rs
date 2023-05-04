@@ -2,6 +2,11 @@
 
 use crate::{print::DisassamblerPrinter, Test};
 
+pub trait TestRun {
+    ///Human readable name of the test. Also used to find blessed result.
+    fn name() -> &'static str;
+}
+
 pub fn parse_test_run(name: &str) -> Option<Test> {
     match name {
         "const_mutate" => {
