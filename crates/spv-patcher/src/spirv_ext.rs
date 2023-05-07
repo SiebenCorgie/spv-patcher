@@ -2,8 +2,9 @@
 
 use rspirv::{
     dr::{Instruction, Operand},
-    spirv::{Op, Word},
+    spirv::{ExecutionMode, ExecutionModel, Op, Word},
 };
+
 pub struct InstructionTree {}
 
 pub trait SpirvExt {
@@ -15,6 +16,9 @@ pub trait SpirvExt {
     ///
     /// You might use this to identify functions, type or named variables.
     fn get_by_name(&self, name: &str) -> Option<&Instruction>;
+
+    ///Returns the execution model of this Module. Note that we, per-definition, only have one entry point per [Module](crate::Module).
+    fn get_execution_model(&self) -> ExecutionModel;
 
     fn get_participating_trees(&self, id: Word) -> Option<InstructionTree>;
 }
@@ -31,6 +35,15 @@ impl SpirvExt for rspirv::dr::Module {
         }
 
         false
+    }
+
+    fn get_execution_model(&self) -> ExecutionModel {
+        let exmodel = match self.entry_points[0].operands[0] {
+            Operand::ExecutionModel(m) => m,
+            _ => panic!("Entry point had no execution mode"),
+        };
+
+        exmodel
     }
 
     fn get_by_name(&self, name: &str) -> Option<&Instruction> {

@@ -6,6 +6,7 @@ members = [
 "crates/patch-binding-location-matching",
 "crates/patch-decorate-nonuniform",
 "crates/patch-function",
+"crates/vulkan-patchable-pipeline"
 ]
 
 
@@ -23,3 +24,4 @@ serde_json = "1"
 marpii = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg-shared = {git = "https://gitlab.com/tendsinmende/marpii.git"}
+marpii-rmg-tasks = {git = "https://gitlab.com/tendsinmende/marpii.git"}

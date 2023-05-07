@@ -1,51 +1,43 @@
 //! Collects all pre defined tests.
 
-use crate::{print::DisassamblerPrinter, Test};
+use std::{
+    error::Error,
+    fmt::{Debug, Display},
+};
+
+use crate::{const_mutate::ConstMutateTest, print::DisassamblerPrinter, BlessedDB, Test};
+use marpii_rmg::{Rmg, RmgError};
+use marpii_rmg_tasks::{NoTaskError, TaskError};
+use spv_patcher::PatcherError;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum TestError {
+    RmgError(#[from] RmgError),
+    PatchError(#[from] PatcherError),
+    TaskError(#[from] TaskError<NoTaskError>),
+}
+
+impl Display for TestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TestError::RmgError(e) => write!(f, "{}", e),
+            TestError::PatchError(e) => write!(f, "{}", e),
+            TestError::TaskError(e) => write!(f, "{}", e),
+        }
+    }
+}
 
 pub trait TestRun {
     ///Human readable name of the test. Also used to find blessed result.
-    fn name() -> &'static str;
+    fn name(&self) -> &'static str;
+    fn run(&mut self, blessing: &mut BlessedDB, rmg: &mut Rmg) -> Result<(), TestError>;
 }
 
-pub fn parse_test_run(name: &str) -> Option<Test> {
+///Tries to parse a `name` to a test run.
+pub fn parse_test_run(name: &str, rmg: &mut Rmg) -> Option<Box<dyn TestRun>> {
     match name {
-        "const_mutate" => {
-            Some(Test {
-                name: name.to_owned(),
-                run: Box::new(|blessed| {
-                    log::info!("const mutate run");
-                    //setup simple const_mutate patch and run it.
-
-                    let mut test = crate::const_mutate::ConstMutateTest::load()
-                        .expect("Failed to load ConstMutatePatch");
-                    let res = test.patch_i32(1, 42).unwrap();
-
-                    let dis = DisassamblerPrinter::from_bytecode(&res);
-                    log::trace!("Post mutate: {}", dis);
-
-                    //check if we have a blessed result, otherwise error out.
-                    if blessed.bless {
-                        if blessed
-                            .blessed_results
-                            .insert("const_mutate".to_owned(), res)
-                            .is_some()
-                        {
-                            log::info!("Overwrote old blessed result for const_mutate");
-                        }
-                    } else {
-                        if let Some(blessed_res) = blessed.blessed_results.get("const_mutate") {
-                            if &res == blessed_res {
-                                log::info!("PASS: const_mutate");
-                            } else {
-                                log::error!("ERROR: const_mutate");
-                            }
-                        } else {
-                            log::error!("Could not find blessed result for const_mutate");
-                        }
-                    }
-                }),
-            })
-        }
+        "const_mutate" => Some(Box::new(ConstMutateTest::load(rmg).unwrap())),
         _ => None,
     }
 }

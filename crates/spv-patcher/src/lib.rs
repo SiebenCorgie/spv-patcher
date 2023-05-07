@@ -26,4 +26,8 @@ pub enum PatcherError {
     LowerError(#[from] std::io::Error),
     #[error("Could not parse spirv binary code: {0}")]
     SpirVParseError(#[from] rspirv::binary::ParseState),
+    #[error("Could not load SPIR-V binary, multiple entry-points exist")]
+    MultipleEntryPoints,
+    #[error("Could not load SPIR-V binary, no entry-point exists")]
+    NoEntryPoint,
 }

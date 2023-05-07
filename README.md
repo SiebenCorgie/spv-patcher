@@ -17,3 +17,15 @@ Compared to simple linking, this patcher allows not just linking in new function
 - injecting runtime linked code 
 - make pipeline [stages compatible](https://github.com/expenses/spirv-location-injector)
 - make non-uniform buffer access valid
+
+
+## Building
+
+1. Download & Install Rust and Cargo
+2. Set `nightly` as the default toolchain. For instace via rustup:
+
+``` sh
+rustup default nightly
+```
+
+3. Compile everything via `cargo build --release`, or run for instance a test with `cargo run --bin spv-tester -- const_mutate`

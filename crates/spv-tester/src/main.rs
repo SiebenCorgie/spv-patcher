@@ -13,8 +13,11 @@ use std::{
 ///Constant mutation test. Takes a compute shader and mutates a constant that is added to a buffer.
 mod const_mutate;
 
+mod compute_task;
 mod print;
 mod tests;
+use marpii::context::Ctx;
+use marpii_rmg::Rmg;
 use serde::{Deserialize, Serialize};
 
 ///Collects a set of patches that are applied, writes down debug information and test
@@ -59,12 +62,16 @@ fn main() {
         }
     };
 
+    //Load Vulkan context for GPGPU workload
+    //TODO read ENV-Variable or something for existence, and check if we are in a Debug build instead.
+    let validation_layer = true;
+    let ctx = Ctx::new_default_headless(validation_layer).unwrap();
+    let mut rmg = Rmg::new(ctx).unwrap();
+
     let mut args = std::env::args();
     let _prog = args.next();
-
     //Read args and parse to test runs
     let mut runs = Vec::new();
-
     for arg in args {
         if &arg == "bless" {
             log::info!("Blessing db in this run");
@@ -72,15 +79,17 @@ fn main() {
             continue;
         }
 
-        if let Some(testrun) = tests::parse_test_run(&arg) {
+        if let Some(testrun) = tests::parse_test_run(&arg, &mut rmg) {
             log::trace!("Found: {}", arg);
             runs.push(testrun);
         }
     }
 
-    for run in runs {
-        log::info!("Running: {}", run.name);
-        (run.run)(&mut blessed_db);
+    for run in &mut runs {
+        log::info!("Running: {}", run.name());
+        if let Err(e) = run.run(&mut blessed_db, &mut rmg) {
+            log::error!("Failed to run test {}: {}", run.name(), e);
+        }
     }
 
     if blessed_db.bless {
