@@ -13,6 +13,8 @@ use spv_patcher::{
 pub struct PatchablePipeline {
     module: Module,
     pipeline: Arc<ComputePipeline>,
+    ///Code on which the current `pipeline` is based on.
+    patched: Vec<u8>,
 }
 use std::sync::Arc;
 
@@ -44,7 +46,12 @@ impl PatchablePipeline {
                 .unwrap(),
         );
 
-        Ok(PatchablePipeline { module, pipeline })
+        let patched = module.template_code().to_vec();
+        Ok(PatchablePipeline {
+            module,
+            pipeline,
+            patched,
+        })
     }
 
     pub fn get_pipeline(&self) -> Arc<ComputePipeline> {
@@ -73,10 +80,15 @@ impl PatchablePipeline {
                 .map_err(|e| MarpiiError::from(e))
                 .unwrap(),
         );
-
+        self.patched = bytemuck::cast_slice(&patched).to_vec();
         self.pipeline = pipeline;
 
         Ok(())
+    }
+
+    ///Get the SPIR-V byte code on which the current `pipeline` is based on.
+    pub fn patched_code(&self) -> &[u8] {
+        &self.patched
     }
 
     pub fn get_module(&self) -> &Module {

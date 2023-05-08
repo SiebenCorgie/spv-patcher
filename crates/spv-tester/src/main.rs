@@ -33,12 +33,14 @@ const BLESSED_FILE: &'static str = "BlessedTests.json";
 pub struct BlessedDB {
     //true if this run blesses the BlessedDB.
     bless: bool,
-    blessed_results: HashMap<String, Vec<u32>>,
+    blessed_results: HashMap<String, Vec<u8>>,
 }
 
 fn main() {
+    //Setup logger at info level.
+    // NOTE: If we set it to trace we'd get all the RMG debug info as well.
     simple_logger::SimpleLogger::new()
-        .with_level(log::LevelFilter::Trace)
+        .with_level(log::LevelFilter::Info)
         .init()
         .unwrap();
 
@@ -46,7 +48,10 @@ fn main() {
     let mut blessed_db = if Path::new(BLESSED_FILE).exists() {
         if let Ok(f) = std::fs::OpenOptions::new().read(true).open(BLESSED_FILE) {
             let reader = BufReader::new(f);
-            serde_json::from_reader(reader).expect("Could not parse blessed file!")
+            let mut blessed_db: BlessedDB =
+                serde_json::from_reader(reader).expect("Could not parse blessed file!");
+            blessed_db.bless = false;
+            blessed_db
         } else {
             log::error!("Failed to open blessed file");
             BlessedDB {
@@ -55,7 +60,7 @@ fn main() {
             }
         }
     } else {
-        log::error!("Could not find blessed file");
+        log::error!("Could not find blessed file, running with bless-flag");
         BlessedDB {
             bless: true,
             blessed_results: HashMap::default(),
@@ -96,6 +101,8 @@ fn main() {
         if Path::new(BLESSED_FILE).exists() {
             let _ = std::fs::remove_file(BLESSED_FILE);
         }
+        //before writing, reset the bless flag, otherwise we'd load it again.
+        blessed_db.bless = false;
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .create(true)

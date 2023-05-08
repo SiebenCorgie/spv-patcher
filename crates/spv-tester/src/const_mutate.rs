@@ -104,6 +104,21 @@ impl TestRun for ConstMutateTest {
         //patch pipeline
         self.patch_i32(rmg, 33, 42);
 
+        //If not currently blessing, assert that the code is the same
+        if !blessing.bless {
+            if let Some(blessed_code) = blessing.blessed_results.get(self.name()) {
+                assert!(
+                    blessed_code == self.test_task.get_pipeline().patched_code(),
+                    "Const-Mutate patched code is invalid!"
+                );
+                log::info!("ConstMutate valid!");
+            } else {
+                log::info!("Nothing to bless for {}", self.name());
+            }
+        } else {
+            log::info!("Blessing!");
+        }
+
         {
             let run_one = rmg
                 .record()
@@ -125,6 +140,14 @@ impl TestRun for ConstMutateTest {
                         "Should be {}, was {}",
                         42,
                         target_buffer[i]
+                    );
+                }
+
+                //If we are blessing, write this shader code to the db
+                if blessing.bless {
+                    let _old = blessing.blessed_results.insert(
+                        self.name().to_string(),
+                        self.test_task.get_pipeline().patched_code().to_vec(),
                     );
                 }
             } else {
