@@ -116,10 +116,48 @@ $=>$ Operate on SPIR-V directly for most, use SPIR-T to lower to RVSDG for flow-
 = Patches
 
 == NonUniform decoration
+=== Problem description
+Currently parts of the program are analysed by the driver (see ACO description) for diverging execution. Others have to be explicitly tagged by the
+programmer. Mostly when descriptors are indexed non-uniformly.
+In GLSL this is done via `nonuniformEXT(int i)`. For instance like this:
 
+
+```C
+layout(location = 0) flat in int i;
+layout(set = 0, binding = 0) uniform sampler2D tex[2];
+/*void main(){...*/
+vec4 color = texture(tex[nonuniformEXT(i)], ...);
+/*...}*/
+```
+
+This effectively marks the index `i` as _possibly different per invocation group_. However in practice this has several problems:
++ When this is needed is not always easy to see
++ When forgotten, bugs are subtil
++ Some drivers seem to handle it well if forgotten.
+
+=== Intuitive solution
+The first observation is, that only descriptor indexing related instructions need to be marked `NonUniform`. Therefore, the pass does not have to explore all indexing, but just the ones indexing into descriptors bindings.
+
+A second observation is, that _per-invocation non-uniform indexing_ has a finite count of sources. One is non-uniform control flow, the other is non-uniform input variables. The latter is found by tracing the index calculation for known non-uniform input variables like `invocation-index` or `vertex-index` etc.
+
+//TODO: checkout if SPIR-T can help here.
+
+Finding non-uniform control-flow is not as easy though. The ACO compiler actually does most of its work in that are. Therefore, we reverse the problem and decorate _every_ descriptor_indexing as _NonUniform_ by default, and just remove the decoration, if we are absolutly sure that it isn't needed.
+
+TODO: Benchmark the result for performance regression.
+
+=== Implementation
+
+=== Performance comparison
 == Shader interface transformation
 === Input / Output matching
+==== Problem description
+==== Reference and implementation
 === Binding specification
+==== Problem description
+==== Binding description Vulkan
+==== Binding description OpenCL
+==== Implementation
 == Function injection
 === Handling functions in shader code
 - Often heavily inlined
