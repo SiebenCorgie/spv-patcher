@@ -1,11 +1,8 @@
 //! Collects all pre defined tests.
 
-use std::{
-    error::Error,
-    fmt::{Debug, Display},
-};
+use std::fmt::{Debug, Display};
 
-use crate::{const_mutate::ConstMutateTest, print::DisassamblerPrinter, BlessedDB, Test};
+use crate::{const_mutate::ConstMutateTest, BlessedDB};
 use marpii_rmg::{Rmg, RmgError};
 use marpii_rmg_tasks::{NoTaskError, TaskError};
 use spv_patcher::PatcherError;

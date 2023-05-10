@@ -1,14 +1,11 @@
-use std::{
-    fmt::Display,
-    io::Write,
-    process::{ExitStatus, Stdio},
-};
+use std::{fmt::Display, io::Write, process::Stdio};
 ///Takes the SPIR-V words and prints it using spv-dis if installed.
 pub struct DisassamblerPrinter {
     to_print: String,
 }
 
 impl DisassamblerPrinter {
+    #[allow(dead_code)]
     pub fn from_bytecode(code: &[u32]) -> Self {
         let mut child = match std::process::Command::new("spirv-dis")
             .arg("--comment")

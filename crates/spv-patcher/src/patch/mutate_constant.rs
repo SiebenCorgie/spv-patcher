@@ -1,16 +1,6 @@
 //! Test patch that mutates a given constant.
 
-use rspirv::{
-    dr::{Instruction, Operand},
-    spirv::Op,
-};
-use spirt::{
-    print::Print,
-    spv::{Imm, Inst},
-    transform::Transformer,
-    visit::Visitor,
-    AttrSet, ConstCtor, ConstDef, Context, TypeCtor, TypeDef,
-};
+use rspirv::{dr::Operand, spirv::Op};
 
 use crate::{spirv_ext::SpirvExt, PatcherError};
 

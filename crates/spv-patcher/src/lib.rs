@@ -8,6 +8,7 @@
 //! - Patch: defines the `Patch` API, as well as implemented patching passes.
 //! - Verify: Provides custom verification methods, as well as using `spirv-val` to verify a SpirV module.
 //!
+#![deny(warnings)]
 
 use thiserror::Error;
 

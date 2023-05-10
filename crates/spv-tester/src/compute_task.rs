@@ -4,10 +4,9 @@ use marpii_rmg_shared::ResourceHandle;
 use marpii_rmg_tasks::{DownloadBuffer, DownloadError, DynamicBuffer, NoTaskError, TaskError};
 
 use bytemuck::Pod;
-use spv_patcher::spirt::Module;
 use vulkan_patchable_pipeline::PatchablePipeline;
 
-use crate::tests::TestError;
+use crate::test_runs::TestError;
 
 #[repr(C, align(16))]
 struct ComputePush {
@@ -53,7 +52,7 @@ impl<T: Pod> Task for ComputeTask<T> {
     fn pre_record(
         &mut self,
         resources: &mut marpii_rmg::Resources,
-        ctx: &marpii_rmg::CtxRmg,
+        _ctx: &marpii_rmg::CtxRmg,
     ) -> Result<(), marpii_rmg::RecordError> {
         self.push.get_content_mut().src =
             resources.resource_handle_or_bind(&self.src_buffer).unwrap();
@@ -68,7 +67,7 @@ impl<T: Pod> Task for ComputeTask<T> {
         &mut self,
         device: &std::sync::Arc<marpii::context::Device>,
         command_buffer: &vk::CommandBuffer,
-        resources: &marpii_rmg::Resources,
+        _resources: &marpii_rmg::Resources,
     ) {
         //bind commandbuffer, setup push constant and execute
 
@@ -117,7 +116,7 @@ impl<T: Pod> SimpleComputeTask<T> {
                 .map_err(|e| TestError::RmgError(e))?
         };
         let download_buffer = DownloadBuffer::new(rmg, download_buffer_hdl.clone())
-            .map_err(|e| TestError::TaskError(TaskError::Task(NoTaskError)))?;
+            .map_err(|_e| TestError::TaskError(TaskError::Task(NoTaskError)))?;
 
         let pipeline = PatchablePipeline::from_spirv(spirv_bytes, rmg)
             .map_err(|e| TestError::PatchError(e))?;
@@ -145,8 +144,11 @@ impl<T: Pod> SimpleComputeTask<T> {
     }
 
     ///Writes the data to GPU
+    #[allow(dead_code)]
     pub fn set_data(&mut self, data: &[T]) {
-        self.upload_buffer.write(data, 0);
+        self.upload_buffer
+            .write(data, 0)
+            .expect("Could not upload buffer to gpu!");
     }
 
     ///Reads the (possibly) processed data from the GPU.

@@ -1,10 +1,8 @@
-use marpii::context::Ctx;
-use marpii_rmg::Rmg;
 use spv_patcher::{
-    patch::MutateConstant, rspirv::spirv::ExecutionModel, spirv_ext::SpirvExt, Module, PatcherError,
+    patch::MutateConstant, rspirv::spirv::ExecutionModel, spirv_ext::SpirvExt, PatcherError,
 };
 
-use crate::{compute_task::SimpleComputeTask, tests::TestRun};
+use crate::{compute_task::SimpleComputeTask, test_runs::TestRun};
 
 const CONST_MUTATE_SPV: &'static [u8] = include_bytes!("../resources/compute_add.spv");
 
@@ -48,6 +46,7 @@ impl ConstMutateTest {
     }
 
     ///Patches
+    #[allow(dead_code)]
     pub fn patch_f32(
         &mut self,
         rmg: &mut marpii_rmg::Rmg,
@@ -70,12 +69,11 @@ impl TestRun for ConstMutateTest {
         &mut self,
         blessing: &mut crate::BlessedDB,
         rmg: &mut marpii_rmg::Rmg,
-    ) -> Result<(), crate::tests::TestError> {
+    ) -> Result<(), crate::test_runs::TestError> {
         //load our pipeline, run it, then patch it and run it again.
 
         {
-            let run_one = rmg
-                .record()
+            rmg.record()
                 .add_meta_task(&mut self.test_task)
                 .unwrap()
                 .execute()
@@ -102,7 +100,7 @@ impl TestRun for ConstMutateTest {
         }
 
         //patch pipeline
-        self.patch_i32(rmg, 33, 42);
+        self.patch_i32(rmg, 33, 42).unwrap();
 
         //If not currently blessing, assert that the code is the same
         if !blessing.bless {
@@ -120,8 +118,7 @@ impl TestRun for ConstMutateTest {
         }
 
         {
-            let run_one = rmg
-                .record()
+            rmg.record()
                 .add_meta_task(&mut self.test_task)
                 .unwrap()
                 .execute()

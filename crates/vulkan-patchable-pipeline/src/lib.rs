@@ -1,5 +1,6 @@
 //! Simple utility crate we use in the tester and benchmarking application to load a base
 //! (Compute) shader module that can be patched at runtime.
+#![deny(warnings)]
 
 use marpii::{
     ash::vk,

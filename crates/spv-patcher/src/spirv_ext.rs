@@ -2,7 +2,7 @@
 
 use rspirv::{
     dr::{Instruction, Operand},
-    spirv::{ExecutionMode, ExecutionModel, Op, Word},
+    spirv::{ExecutionModel, Op, Word},
 };
 
 pub struct InstructionTree {}
@@ -46,11 +46,11 @@ impl SpirvExt for rspirv::dr::Module {
         exmodel
     }
 
-    fn get_by_name(&self, name: &str) -> Option<&Instruction> {
+    fn get_by_name(&self, _name: &str) -> Option<&Instruction> {
         None
     }
 
-    fn get_participating_trees(&self, id: Word) -> Option<InstructionTree> {
+    fn get_participating_trees(&self, _id: Word) -> Option<InstructionTree> {
         None
     }
 }

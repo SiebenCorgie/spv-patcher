@@ -15,17 +15,10 @@ mod const_mutate;
 
 mod compute_task;
 mod print;
-mod tests;
+mod test_runs;
 use marpii::context::Ctx;
 use marpii_rmg::Rmg;
 use serde::{Deserialize, Serialize};
-
-///Collects a set of patches that are applied, writes down debug information and test
-/// results
-pub struct Test {
-    name: String,
-    run: Box<dyn FnOnce(&mut BlessedDB)>,
-}
 
 const BLESSED_FILE: &'static str = "BlessedTests.json";
 
@@ -84,7 +77,7 @@ fn main() {
             continue;
         }
 
-        if let Some(testrun) = tests::parse_test_run(&arg, &mut rmg) {
+        if let Some(testrun) = test_runs::parse_test_run(&arg, &mut rmg) {
             log::trace!("Found: {}", arg);
             runs.push(testrun);
         }
@@ -103,7 +96,7 @@ fn main() {
         }
         //before writing, reset the bless flag, otherwise we'd load it again.
         blessed_db.bless = false;
-        let mut file = std::fs::OpenOptions::new()
+        let file = std::fs::OpenOptions::new()
             .write(true)
             .create(true)
             .open(BLESSED_FILE)
