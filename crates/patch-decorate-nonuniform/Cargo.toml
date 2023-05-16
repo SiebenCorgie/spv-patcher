@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 spv-patcher = {path = "../spv-patcher"}
+log.workspace = true
+ahash.workspace = true
+smallvec.workspace = true

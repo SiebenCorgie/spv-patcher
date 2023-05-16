@@ -3,22 +3,24 @@
 //! Runs a series of compute and graphics tests, comparing the results to the "blessed" expected values.
 //! Those tests are mainly *integration tests.* The patcher's unit tests reside in its local
 //! `spv-patcher/tests` directory.
+#![deny(warnings)]
 
+use marpii::context::Ctx;
+use marpii_rmg::Rmg;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     io::{BufReader, BufWriter},
     path::Path,
 };
 
+mod compute_task;
 ///Constant mutation test. Takes a compute shader and mutates a constant that is added to a buffer.
 mod const_mutate;
-
-mod compute_task;
+mod non_uniform;
 mod print;
 mod test_runs;
-use marpii::context::Ctx;
-use marpii_rmg::Rmg;
-use serde::{Deserialize, Serialize};
+mod validator;
 
 const BLESSED_FILE: &'static str = "BlessedTests.json";
 

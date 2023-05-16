@@ -1,0 +1,46 @@
+#version 460
+//GLSL Compute shader that adds a constant.
+//
+//This one is specifically made to index nonuniformly into two different buffers
+//with a missing non-uniform annotation.
+
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_nonuniform_qualifier : require
+#include "shared.glsl"
+
+
+
+layout( push_constant ) uniform Push{
+  ResHandle src1;
+  ResHandle src2;
+  ResHandle dst;
+  uint size;
+} push;
+
+layout(set = 0, binding = 0) buffer GlobalBuffers{
+    uint dta[];
+} global_buffer[];
+
+//running in 64 waves
+layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+void main(){
+  uint widx = gl_GlobalInvocationID.x;
+
+  if (widx >= push.size){
+      return;
+  }
+
+  ResHandle res;
+  //invocation-level non-uniform controll flow
+  if ((widx % 2) == 0){
+      res = push.src1;
+  }else{
+      res = push.src2;
+  }
+  //At this point *res* is NonUniform without being
+  //annotated as such. Therefore *src* will be optimized as-if uniform
+  //resulting in a per-wave uniform value of `src`.
+  uint src = global_buffer[get_index(res)].dta[widx];
+
+  global_buffer[get_index(push.dst)].dta[widx] = src;
+}

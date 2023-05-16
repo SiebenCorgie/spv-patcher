@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 spv-patcher = {path = "../spv-patcher"}
 vulkan-patchable-pipeline = {path = "../vulkan-patchable-pipeline"}
+patch-decorate-nonuniform = {path = "../patch-decorate-nonuniform"}
 log.workspace = true
 simple_logger.workspace = true
 serde = {workspace = true, features = ["derive"]}
