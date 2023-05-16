@@ -1,14 +1,38 @@
+use marpii::resources::PushConstant;
+use marpii_rmg_shared::ResourceHandle;
+use marpii_rmg_tasks::{DownloadBuffer, UploadBuffer};
 use spv_patcher::{
     patch::MutateConstant, rspirv::spirv::ExecutionModel, spirv_ext::SpirvExt, PatcherError,
 };
 
-use crate::{compute_task::SimpleComputeTask, test_runs::TestRun};
+use crate::{compute_task::ComputeTask, test_runs::TestRun};
 
 const CONST_MUTATE_SPV: &'static [u8] = include_bytes!("../resources/compute_add.spv");
 
+#[repr(C, align(16))]
+struct ConstMutPush {
+    src: ResourceHandle,
+    dst: ResourceHandle,
+    buffer_size: u32,
+    pad0: u32,
+}
+
+impl Default for ConstMutPush {
+    fn default() -> Self {
+        ConstMutPush {
+            src: ResourceHandle::INVALID,
+            dst: ResourceHandle::INVALID,
+            buffer_size: ConstMutateTest::BUFSIZE as u32,
+            pad0: 0xdeadbeef,
+        }
+    }
+}
+
 pub struct ConstMutateTest {
     //Represents our GPU site test task
-    test_task: SimpleComputeTask<u32>,
+    test_task: ComputeTask<ConstMutPush, u32>,
+    src: UploadBuffer<u32>,
+    dst: DownloadBuffer<u32>,
 }
 
 impl ConstMutateTest {
@@ -16,10 +40,29 @@ impl ConstMutateTest {
     //loads the shader
     pub fn load(rmg: &mut marpii_rmg::Rmg) -> Result<Self, PatcherError> {
         let initial_data = &[0u32; Self::BUFSIZE];
-        let test_task =
-            SimpleComputeTask::new(rmg, CONST_MUTATE_SPV.to_vec(), initial_data).unwrap();
+        let src = UploadBuffer::new(rmg, initial_data).unwrap();
+        let src_hdl = src.buffer.clone();
+        let dst = DownloadBuffer::new_for(rmg, Self::BUFSIZE).unwrap();
+        let dst_hdl = dst.gpu_handle();
+        let test_task = ComputeTask::new(
+            rmg,
+            CONST_MUTATE_SPV.to_vec(),
+            vec![src_hdl.clone()],
+            vec![dst_hdl.clone()],
+            Self::BUFSIZE as u32,
+            move |push: &mut PushConstant<ConstMutPush>, resources, _ctx| {
+                println!("Writing src and dst, {:?}, {:?}!", src_hdl, dst_hdl);
+                push.get_content_mut().src = resources.resource_handle_or_bind(&src_hdl).unwrap();
+                push.get_content_mut().dst = resources.resource_handle_or_bind(&dst_hdl).unwrap();
+            },
+        )
+        .unwrap();
 
-        Ok(ConstMutateTest { test_task })
+        Ok(ConstMutateTest {
+            test_task,
+            src,
+            dst,
+        })
     }
 
     ///Patches
@@ -31,14 +74,14 @@ impl ConstMutateTest {
     ) -> Result<(), PatcherError> {
         assert!(
             self.test_task
-                .get_pipeline()
+                .pipeline
                 .get_module()
                 .spirv()
                 .get_execution_model()
                 == ExecutionModel::GLCompute
         );
 
-        self.test_task.get_pipeline().patch_pipeline(rmg, |patch| {
+        self.test_task.pipeline.patch_pipeline(rmg, |patch| {
             patch
                 //.print()
                 .patch(MutateConstant::Integer { from, to })
@@ -53,7 +96,7 @@ impl ConstMutateTest {
         from: f32,
         to: f32,
     ) -> Result<(), PatcherError> {
-        self.test_task.get_pipeline().patch_pipeline(rmg, |patch| {
+        self.test_task.pipeline.patch_pipeline(rmg, |patch| {
             patch
                 //.print()
                 .patch(MutateConstant::Float { from, to })
@@ -74,24 +117,32 @@ impl TestRun for ConstMutateTest {
 
         {
             rmg.record()
-                .add_meta_task(&mut self.test_task)
+                .add_task(&mut self.src)
+                .unwrap()
+                .add_task(&mut self.test_task)
+                .unwrap()
+                .add_task(&mut self.dst)
                 .unwrap()
                 .execute()
                 .unwrap();
 
+            std::thread::sleep(std::time::Duration::from_secs(1));
             let mut target_buffer = [0u32; Self::BUFSIZE];
-            let res = self.test_task.get_data(rmg, &mut target_buffer);
+            let res = self.dst.download(rmg, &mut target_buffer);
             if let Ok(size) = res {
                 if size != Self::BUFSIZE {
                     log::error!("Download size did not match: {} != {}", size, Self::BUFSIZE);
                 }
 
+                println!("{:?}", &target_buffer);
+
                 for i in 0..size {
                     assert!(
                         target_buffer[i] == 33,
-                        "Should be {}, was {}",
-                        34,
-                        target_buffer[i]
+                        "Should be {}, was {} @ {}",
+                        33,
+                        target_buffer[i],
+                        i
                     );
                 }
             } else {
@@ -106,7 +157,7 @@ impl TestRun for ConstMutateTest {
         if !blessing.bless {
             if let Some(blessed_code) = blessing.blessed_results.get(self.name()) {
                 assert!(
-                    blessed_code == self.test_task.get_pipeline().patched_code(),
+                    blessed_code == self.test_task.pipeline.patched_code(),
                     "Const-Mutate patched code is invalid!"
                 );
                 log::info!("ConstMutate valid!");
@@ -119,13 +170,16 @@ impl TestRun for ConstMutateTest {
 
         {
             rmg.record()
-                .add_meta_task(&mut self.test_task)
+                //NOTE: don't need to upload again, instead use the same input
+                .add_task(&mut self.test_task)
+                .unwrap()
+                .add_task(&mut self.dst)
                 .unwrap()
                 .execute()
                 .unwrap();
 
             let mut target_buffer = [0u32; Self::BUFSIZE];
-            let res = self.test_task.get_data(rmg, &mut target_buffer);
+            let res = self.dst.download(rmg, &mut target_buffer);
             if let Ok(size) = res {
                 if size != Self::BUFSIZE {
                     log::error!("Download size did not match: {} != {}", size, Self::BUFSIZE);
@@ -144,7 +198,7 @@ impl TestRun for ConstMutateTest {
                 if blessing.bless {
                     let _old = blessing.blessed_results.insert(
                         self.name().to_string(),
-                        self.test_task.get_pipeline().patched_code().to_vec(),
+                        self.test_task.pipeline.patched_code().to_vec(),
                     );
                 }
             } else {

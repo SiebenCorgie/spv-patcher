@@ -6,7 +6,7 @@ pub struct DisassamblerPrinter {
 
 impl DisassamblerPrinter {
     #[allow(dead_code)]
-    pub fn from_bytecode(code: &[u32]) -> Self {
+    pub fn from_words(code: &[u32]) -> Self {
         let mut child = match std::process::Command::new("spirv-dis")
             .arg("--comment")
             .stdin(Stdio::piped())
@@ -42,6 +42,11 @@ impl DisassamblerPrinter {
             }
         };
         DisassamblerPrinter { to_print: output }
+    }
+
+    #[allow(dead_code)]
+    pub fn from_bytecode(code: &[u8]) -> Self {
+        Self::from_words(bytemuck::cast_slice(code))
     }
 }
 
