@@ -13,17 +13,8 @@ mod link_replace;
 /// rewritten variables type, but arguments have to be routed.
 mod assignment_rewrite;
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+mod function_finder;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use assignment_rewrite::AssignmentRewrite;
+pub use function_finder::{FuncIdent, FunctionFinder};
+pub use link_replace::LinkReplace;
