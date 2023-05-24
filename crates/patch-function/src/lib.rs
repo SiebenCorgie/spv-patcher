@@ -12,9 +12,10 @@ mod link_replace;
 ///Assingment rewrite of some value by function calling. Only the return type has to match the
 /// rewritten variables type, but arguments have to be routed.
 mod assignment_rewrite;
-
+mod enumerate;
 mod function_finder;
 
 pub use assignment_rewrite::AssignmentRewrite;
+pub use enumerate::{FuncDeclaration, FuncEnumerator};
 pub use function_finder::{FuncIdent, FunctionFinder};
 pub use link_replace::LinkReplace;

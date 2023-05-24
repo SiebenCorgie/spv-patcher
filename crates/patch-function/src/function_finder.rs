@@ -7,6 +7,11 @@ use spv_patcher::{
     spirv_ext::SpirvExt,
 };
 
+pub struct FuncSignature {
+    return_type: u32,
+    argument_types: SmallVec<[u32; 3]>,
+}
+
 ///Ways of identifying a function or linkage point.
 pub enum FuncIdent {
     ///Either a debug name of a function, or the string literals used by [Linkage](https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#Linkage).
@@ -20,12 +25,7 @@ pub enum FuncIdent {
     /// Make sure that the signature uses the same type-ids as the SPIR-V module this patch is applied on.
     ///
     /// For convenience consider using rspirv's [Builder](https://docs.rs/rspirv/latest/rspirv/dr/struct.Builder.html) for instance via [Builder::type_struct](https://docs.rs/rspirv/latest/rspirv/dr/struct.Builder.html#method.type_struct)
-    Signature {
-        ///In-Order types of arguments to the function.
-        arg_types: SmallVec<[u32; 3]>,
-        ///The result type of the function
-        return_type: u32,
-    },
+    Signature(FuncSignature),
 }
 
 impl FuncIdent {
@@ -68,10 +68,10 @@ impl FunctionFinder {
                     }
                 }
             }
-            FuncIdent::Signature {
-                arg_types,
+            FuncIdent::Signature(FuncSignature {
                 return_type,
-            } => {
+                argument_types,
+            }) => {
                 //Used to collect parameter types after an OpFunction
                 let mut collecting_parameters_for = None;
                 let mut parameters = SmallVec::<[u32; 3]>::new();
@@ -124,7 +124,7 @@ impl FunctionFinder {
                                 }
 
                                 //now parallel iter all function args and the expected args
-                                let args_match = param_iter.zip(arg_types.iter()).fold(true, |is_matching, (actual, expected)|{
+                                let args_match = param_iter.zip(argument_types.iter()).fold(true, |is_matching, (actual, expected)|{
                                     if is_matching{
                                         if actual != expected{
                                             log::error!("Argument type missmatch, expected: {}, found: {}", expected, actual);
