@@ -7,15 +7,17 @@ use spv_patcher::{
     spirv_ext::SpirvExt,
 };
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct FuncSignature {
-    return_type: u32,
-    argument_types: SmallVec<[u32; 3]>,
+    pub return_type: u32,
+    pub argument_types: SmallVec<[u32; 3]>,
 }
 
 ///Ways of identifying a function or linkage point.
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FuncIdent {
     ///Either a debug name of a function, or the string literals used by [Linkage](https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#Linkage).
-    Name(&'static str),
+    Name(String),
     ///Signature of a function based on input and output parameters. Note that simple functions like `() -> i32` might possibly be occur multiple times in a module.
     /// Be sure to select the right one when patching.
     ///
@@ -45,9 +47,7 @@ pub struct FunctionFinder;
 impl FunctionFinder {
     pub fn find(spirv: &Module, ident: &FuncIdent) -> SmallVec<[Instruction; 3]> {
         let mut results = SmallVec::new();
-
         //Find all OpFunctions, then check if we can match the `ident` against them.
-
         match ident {
             FuncIdent::Name(name) => {
                 //in this case we just search for the debug name.
@@ -79,21 +79,18 @@ impl FunctionFinder {
                     match inst.class.opcode {
                         Op::Function => {
                             assert!(
-                                collecting_parameters_for.is_some(),
+                                collecting_parameters_for.is_none(),
                                 "OpFunction, while already collecting a function's parameters"
                             );
                             parameters.clear();
                             collecting_parameters_for = Some(inst.clone());
-                            log::info!(
-                                "Found function with result type {:?}",
-                                inst.operands[0].id_ref_any()
-                            );
-                            parameters.push(inst.operands[0].id_ref_any().unwrap());
+                            log::info!("Found function with result type {:?}", inst.result_type);
+                            parameters.push(inst.result_type.unwrap());
                             //push result type as first parameter
                         }
                         Op::FunctionParameter => {
                             assert!(collecting_parameters_for.is_some());
-                            if let Some(ty_id) = inst.operands[0].id_ref_any() {
+                            if let Some(ty_id) = inst.result_type {
                                 parameters.push(ty_id);
                             } else {
                                 panic!("FunctionParameter had no type id!");
@@ -115,8 +112,8 @@ impl FunctionFinder {
                                 let mut param_iter = parameters.iter();
                                 let resty = param_iter.next().unwrap();
                                 if resty != return_type {
-                                    log::error!(
-                                        "Result type missmatch: {} != {}",
+                                    log::info!(
+                                        "Testing return_type_equality: Result type missmatch: {} != {}",
                                         resty,
                                         return_type
                                     );
@@ -127,7 +124,7 @@ impl FunctionFinder {
                                 let args_match = param_iter.zip(argument_types.iter()).fold(true, |is_matching, (actual, expected)|{
                                     if is_matching{
                                         if actual != expected{
-                                            log::error!("Argument type missmatch, expected: {}, found: {}", expected, actual);
+                                            log::info!("Argument type missmatch, expected: {}, found: {}", expected, actual);
                                         }
                                         actual == expected
                                     }else{
@@ -146,6 +143,10 @@ impl FunctionFinder {
                 }
             }
         }
+
+        //FIXME: it might happen that the last basic block is just an import declared function block.
+        //       in that case however, we might not execute the *compare* part above.
+        //       However, import might also declare OpFunctionEnd, in that case this wouldn't be a problem.
 
         results
     }

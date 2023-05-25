@@ -2,7 +2,10 @@
 
 use std::fmt::{Debug, Display};
 
-use crate::{const_mutate::ConstMutateTest, non_uniform::NonUniformTest, BlessedDB};
+use crate::{
+    const_mutate::ConstMutateTest, function_finder::FuncFinderTest, non_uniform::NonUniformTest,
+    BlessedDB,
+};
 use marpii_rmg::{Rmg, RmgError};
 use marpii_rmg_tasks::{NoTaskError, TaskError};
 use spv_patcher::PatcherError;
@@ -36,6 +39,7 @@ pub fn parse_test_run(name: &str, rmg: &mut Rmg) -> Option<Box<dyn TestRun>> {
     match name {
         "const_mutate" => Some(Box::new(ConstMutateTest::load(rmg).unwrap())),
         "non_uniform_patch" => Some(Box::new(NonUniformTest::load(rmg).unwrap())),
+        "function_finder" => Some(Box::new(FuncFinderTest::new())),
         _ => None,
     }
 }
