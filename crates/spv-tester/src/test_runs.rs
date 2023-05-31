@@ -40,6 +40,9 @@ pub fn parse_test_run(name: &str, rmg: &mut Rmg) -> Option<Box<dyn TestRun>> {
         "const_mutate" => Some(Box::new(ConstMutateTest::load(rmg).unwrap())),
         "non_uniform_patch" => Some(Box::new(NonUniformTest::load(rmg).unwrap())),
         "function_finder" => Some(Box::new(FuncFinderTest::new())),
-        _ => None,
+        _ => {
+            log::error!("No test named \"{}\" found!", name);
+            None
+        }
     }
 }

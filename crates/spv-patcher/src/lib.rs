@@ -10,6 +10,8 @@
 //!
 #![deny(warnings)]
 
+use std::error::Error;
+
 use thiserror::Error;
 
 pub use rspirv;
@@ -31,4 +33,6 @@ pub enum PatcherError {
     MultipleEntryPoints,
     #[error("Could not load SPIR-V binary, no entry-point exists")]
     NoEntryPoint,
+    #[error("Patch internal runtime error: {0}")]
+    Internal(Box<dyn Error>),
 }

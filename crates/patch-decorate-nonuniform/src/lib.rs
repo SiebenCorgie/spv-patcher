@@ -18,7 +18,7 @@
 //!   - Possibly write down accessed chain type to add right capabilities later.
 //! - Pass 3:
 //!   - If non-uniformity found, and ext not already there, add nonuniform ext to module.
-//!   - After analyzis, if non-uniformity was found, add Capabilities if not already there.
+//!   - After analysis, if non-uniformity was found, add Capabilities if not already there.
 
 #![deny(warnings)]
 

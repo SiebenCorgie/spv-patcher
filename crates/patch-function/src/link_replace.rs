@@ -1,6 +1,6 @@
-use spv_patcher::rspirv::dr::Instruction;
+use spv_patcher::{patch::Patch, rspirv::dr::Instruction};
 
-use crate::function_finder::FuncIdent;
+use crate::{function_finder::FuncIdent, FunctionFinder};
 
 use thiserror::Error;
 
@@ -26,5 +26,36 @@ impl LinkReplace {
             ident: to_replace,
             func: replaced,
         })
+    }
+}
+
+impl Patch for LinkReplace {
+    fn apply<'a>(
+        self,
+        mut patcher: spv_patcher::patch::Patcher<'a>,
+    ) -> Result<spv_patcher::patch::Patcher<'a>, spv_patcher::PatcherError> {
+        let spv_mod = patcher.ir_state.as_spirv();
+        let funcs = FunctionFinder::find(&spv_mod, &self.ident);
+        if funcs.len() == 0 {
+            return Err(spv_patcher::PatcherError::Internal(
+                format!(
+                    "Found no function to replace with signature {:?}",
+                    self.ident
+                )
+                .into(),
+            ));
+        }
+
+        if funcs.len() > 1 {
+            log::warn!(
+                "Found more than one function matching {:?}, using first one",
+                &self.ident
+            );
+        }
+
+        let _function_instruction = &funcs[0];
+        //Apply patch to function at instruction
+
+        Ok(patcher)
     }
 }
