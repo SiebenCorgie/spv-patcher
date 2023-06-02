@@ -2,7 +2,7 @@ use smallvec::SmallVec;
 use spv_patcher::{
     patch::Patch,
     rspirv::{
-        dr::{Instruction, Module},
+        dr::{Builder, Instruction, Module},
         spirv::Op,
     },
     PatcherError,
@@ -27,15 +27,14 @@ pub enum ReplaceError {
     MultipleFunctions,
     #[error("Could not find an OpFunction in the supplied replacment code")]
     NoFunctionFound,
+    #[error("ConstReplace is unimplemented")]
+    Unimplemented,
 }
-
-///Trait alias for the replace function that is executed when using [new_dyn](LinkReplace::dyn_new).
-pub trait RuntimeReplace =
-    Fn(&Module, &Instruction) -> Result<Vec<Instruction>, ReplaceError> + 'static;
 
 ///Distintion between always replacing with the same code, or __patch_time__ calculated code.
 enum ReplaceStrategy {
-    Const(Vec<Instruction>),
+    ///Replace with a constant, spirv module.
+    Const(Module),
     Runtime(Box<dyn RuntimeReplace>),
 }
 
@@ -51,18 +50,13 @@ pub struct LinkReplace {
 }
 
 impl LinkReplace {
-    ///Replaces `to_replace` with a consant instruction string `replace`.
+    ///Replaces `to_replace` with a consant SPIR-V Module. Note that the module can potentially contain multiple functions. At replace time a matching function
+    /// in the template, and the supplied `replace` function is found based on `to_replace`.
     ///
-    /// # Safety:
-    /// `replace` must be the compleat function (starting with `OpFunction`, ending with `OpFunctionEnd`). All IDs must be created in the context
-    /// of the module this patch is executed on. This means mostly that all TypeIDs have to match. For instance if `OpTypeInt 32 0` has the ID `%14`,
-    /// a variable in `replaced` with type `i32` must have the TypeID `%14` as well.
+    /// Possibly new type-definitions, capabilities etc. are carried over (TODO: Actually implement that).
     ///
     /// If you are unsure, consider using `new_dyn` and the [SpirvBuilder](rspirv::dr::Builder)
-    pub fn new_const(
-        to_replace: FuncIdent,
-        replaced: Vec<Instruction>,
-    ) -> Result<Self, ReplaceError> {
+    pub fn new_const(to_replace: FuncIdent, replaced: Module) -> Result<Self, ReplaceError> {
         //NOTE: We can't check type information here, since we don't know the spirv module at this point.
         Ok(LinkReplace {
             ident: to_replace,
@@ -92,7 +86,20 @@ impl LinkReplace {
     fn tag_region(&mut self, module: &Module, function: &Instruction) -> Result<(), ReplaceError> {
         //Give the dynamic replace a chance to calculate the replace code
         let to_replace = match &self.replace_strategy {
-            ReplaceStrategy::Const(const_fn) => const_fn.clone(),
+            ReplaceStrategy::Const(_const_fn) => {
+                log::error!("Const replace not implemented!");
+                //TODO implement merging _const_replace into the module. For that we have to
+                // merge all type definitions, capabilities etc.
+                //
+                // Check if that would be faster on a SPIR-T module, or if rspirv has a helper for that.
+                // Otherwise write a *generic* merge pass that does the following.
+                //
+                // 1. Analyse common and missing types, rewrite common-type-ids, add missing.
+                // 2. Merge header (capabilites, extensions etc.)
+                // 3. Then add code to the *end* (strict higher idx compared to original module)
+                return Err(ReplaceError::Unimplemented);
+                //const_fn.clone()
+            }
             ReplaceStrategy::Runtime(exec) => exec(module, function)?,
         };
 
