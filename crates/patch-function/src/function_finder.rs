@@ -72,73 +72,66 @@ impl FunctionFinder {
                 return_type,
                 argument_types,
             }) => {
-                //Used to collect parameter types after an OpFunction
-                let mut collecting_parameters_for = None;
-                let mut parameters = SmallVec::<[u32; 3]>::new();
-                for inst in spirv.all_inst_iter() {
-                    match inst.class.opcode {
-                        Op::Function => {
-                            assert!(
-                                collecting_parameters_for.is_none(),
-                                "OpFunction, while already collecting a function's parameters"
+                //Iterate all functions, collect parameter type-ids and push it
+                // into our collection
+                for func in spirv.functions.iter() {
+                    if let Some(rt) = func.def.as_ref().map(|d| d.result_type).flatten() {
+                        if &rt != return_type {
+                            log::info!(
+                                "Testing return_type_equality: Result type missmatch: {} != {}",
+                                rt,
+                                return_type
                             );
-                            parameters.clear();
-                            collecting_parameters_for = Some(inst.clone());
-                            log::info!("Found function with result type {:?}", inst.result_type);
-                            parameters.push(inst.result_type.unwrap());
-                            //push result type as first parameter
+                            continue;
                         }
-                        Op::FunctionParameter => {
-                            assert!(collecting_parameters_for.is_some());
-                            if let Some(ty_id) = inst.result_type {
-                                parameters.push(ty_id);
-                            } else {
-                                panic!("FunctionParameter had no type id!");
-                            }
-                        }
-                        _ => {
-                            //if we where collecting up to this point, this means the function header is finished and we can check the
-                            // type matching.
-                            if let Some(src_function) = collecting_parameters_for.take() {
-                                //NOTE: for sanity, this *should* be OpLine or OpLabel. However, Labels can be deleted, and sometimes OpLines
-                                // are emitted wrong. Which is a error-on paper, but sometimes happens.
-                                assert!(
-                                    inst.class.opcode == Op::Label || inst.class.opcode == Op::Line,
-                                    "Post Function header should be OpLine or OpLabel, was {:?}",
-                                    inst.class.opcode
-                                );
+                    } else {
+                        log::warn!(
+                            "No return type set, this is invalid!, must be at least OpTypeVoid"
+                        );
+                        continue;
+                    }
 
-                                //first, match the ops result type, which should be the first collected parameter.
-                                let mut param_iter = parameters.iter();
-                                let resty = param_iter.next().unwrap();
-                                if resty != return_type {
-                                    log::info!(
-                                        "Testing return_type_equality: Result type missmatch: {} != {}",
-                                        resty,
-                                        return_type
-                                    );
-                                    continue;
-                                }
-
-                                //now parallel iter all function args and the expected args
-                                let args_match = param_iter.zip(argument_types.iter()).fold(true, |is_matching, (actual, expected)|{
-                                    if is_matching{
-                                        if actual != expected{
-                                            log::info!("Argument type missmatch, expected: {}, found: {}", expected, actual);
+                    //now parallel iter all function args and the expected args
+                    let args_match = {
+                        //early out if the count doesn't match, otherwise compare ID's
+                        if func.parameters.len() != argument_types.len() {
+                            log::info!(
+                                "Argument count missmatch: {} != {}",
+                                func.parameters.len(),
+                                argument_types.len()
+                            );
+                            false
+                        } else {
+                            func.parameters.iter().zip(argument_types.iter()).fold(
+                                true,
+                                |is_matching, (actual, expected)| {
+                                    if is_matching {
+                                        if actual.result_type.as_ref().unwrap() != expected {
+                                            log::info!(
+                                                "Argument type missmatch, expected: {}, found: {}",
+                                                expected,
+                                                actual.result_type.as_ref().unwrap()
+                                            );
+                                        } else {
+                                            log::info!(
+                                                "ArgTypeMatch {} == {}!",
+                                                expected,
+                                                actual.result_type.as_ref().unwrap()
+                                            );
                                         }
-                                        actual == expected
-                                    }else{
+                                        actual.result_type.as_ref().unwrap() == expected
+                                    } else {
                                         //Already unmatched
                                         false
                                     }
-                                });
-
-                                //args match as well, therefore we can push the initial OpFunction
-                                if args_match {
-                                    results.push(src_function);
-                                }
-                            }
+                                },
+                            )
                         }
+                    };
+
+                    //args match as well, therefore we can push the initial OpFunction
+                    if args_match {
+                        results.push(func.def.clone().unwrap());
                     }
                 }
             }

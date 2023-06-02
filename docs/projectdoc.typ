@@ -204,6 +204,8 @@ The patch only needs to match the function's signature and return type.
 When injecting we insert the custom function into the module. The _patcher_ can then select a variable (or multiple) in the _main controll flow_ with a type that matches the function's return type. The correct variable might be identifyable by debug information like a variable name string.
 The patch then injects custom code that executes the inserted function and writes the result to the selected variable.
 
+TODO: discuss custom instruction extension if we would have controll over the template's compiler
+
 ==== Implementation
 
 - variable enumeration based on return type
