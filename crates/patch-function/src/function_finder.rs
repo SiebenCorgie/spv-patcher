@@ -1,7 +1,7 @@
 use smallvec::SmallVec;
 use spv_patcher::{
     rspirv::{
-        dr::{Instruction, Module},
+        dr::{Function, Instruction, Module},
         spirv::Op,
     },
     spirv_ext::SpirvExt,
@@ -11,6 +11,55 @@ use spv_patcher::{
 pub struct FuncSignature {
     pub return_type: u32,
     pub argument_types: SmallVec<[u32; 3]>,
+}
+
+impl FuncSignature {
+    pub fn signature_matches(&self, module_function: &Function) -> bool {
+        let rt = module_function.def.as_ref().unwrap().result_type.unwrap();
+        if rt != self.return_type {
+            log::info!(
+                "Testing return_type_equality: Result type missmatch: {} != {}",
+                rt,
+                self.return_type
+            );
+            return false;
+        }
+
+        if module_function.parameters.len() != self.argument_types.len() {
+            log::info!(
+                "Argument count missmatch: {} != {}",
+                module_function.parameters.len(),
+                self.argument_types.len()
+            );
+            return false;
+        }
+
+        module_function
+            .parameters
+            .iter()
+            .zip(self.argument_types.iter())
+            .fold(true, |matches, (mfp, sp)| {
+                if matches {
+                    if mfp.result_type.as_ref().unwrap() == sp {
+                        log::info!(
+                            "ArgTypeMatch {} == {}!",
+                            mfp.result_type.as_ref().unwrap(),
+                            sp
+                        );
+                        true
+                    } else {
+                        log::info!(
+                            "Argument type missmatch, expected: {}, found: {}",
+                            mfp.result_type.as_ref().unwrap(),
+                            sp
+                        );
+                        false
+                    }
+                } else {
+                    false
+                }
+            })
+    }
 }
 
 ///Ways of identifying a function or linkage point.
@@ -68,69 +117,11 @@ impl FunctionFinder {
                     }
                 }
             }
-            FuncIdent::Signature(FuncSignature {
-                return_type,
-                argument_types,
-            }) => {
+            FuncIdent::Signature(sig) => {
                 //Iterate all functions, collect parameter type-ids and push it
                 // into our collection
                 for func in spirv.functions.iter() {
-                    if let Some(rt) = func.def.as_ref().map(|d| d.result_type).flatten() {
-                        if &rt != return_type {
-                            log::info!(
-                                "Testing return_type_equality: Result type missmatch: {} != {}",
-                                rt,
-                                return_type
-                            );
-                            continue;
-                        }
-                    } else {
-                        log::warn!(
-                            "No return type set, this is invalid!, must be at least OpTypeVoid"
-                        );
-                        continue;
-                    }
-
-                    //now parallel iter all function args and the expected args
-                    let args_match = {
-                        //early out if the count doesn't match, otherwise compare ID's
-                        if func.parameters.len() != argument_types.len() {
-                            log::info!(
-                                "Argument count missmatch: {} != {}",
-                                func.parameters.len(),
-                                argument_types.len()
-                            );
-                            false
-                        } else {
-                            func.parameters.iter().zip(argument_types.iter()).fold(
-                                true,
-                                |is_matching, (actual, expected)| {
-                                    if is_matching {
-                                        if actual.result_type.as_ref().unwrap() != expected {
-                                            log::info!(
-                                                "Argument type missmatch, expected: {}, found: {}",
-                                                expected,
-                                                actual.result_type.as_ref().unwrap()
-                                            );
-                                        } else {
-                                            log::info!(
-                                                "ArgTypeMatch {} == {}!",
-                                                expected,
-                                                actual.result_type.as_ref().unwrap()
-                                            );
-                                        }
-                                        actual.result_type.as_ref().unwrap() == expected
-                                    } else {
-                                        //Already unmatched
-                                        false
-                                    }
-                                },
-                            )
-                        }
-                    };
-
-                    //args match as well, therefore we can push the initial OpFunction
-                    if args_match {
+                    if sig.signature_matches(func) {
                         results.push(func.def.clone().unwrap());
                     }
                 }
