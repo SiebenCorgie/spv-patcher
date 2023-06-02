@@ -5,7 +5,7 @@
 //! 2. Assignment rewrite: Rewrites a known variable to be assigned base on a supplied function. This pass requires the user to
 //!    route possibly needed arguments to the function.
 #![deny(warnings)]
-
+#![feature(trait_alias)]
 ///Replaces a known function (or import-marked function) with a given function.
 mod link_replace;
 

@@ -51,9 +51,9 @@ impl FunctionFinder {
         match ident {
             FuncIdent::Name(name) => {
                 //in this case we just search for the debug name.
-                for inst in spirv.all_inst_iter() {
-                    if inst.class.opcode == Op::Function {
-                        //search for the name in the debug section
+                for func in spirv.functions.iter() {
+                    if let Some(inst) = &func.def {
+                        assert!(inst.class.opcode == Op::Function);
                         let named_id = inst.result_id.unwrap();
                         if let Some(dbg_name) = spirv.get_name(named_id) {
                             if &dbg_name == name {
