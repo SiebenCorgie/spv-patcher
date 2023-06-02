@@ -30,11 +30,13 @@ pub struct RuntimeFunctionSignature {
     /// Therefore if given parameters `[(v1,t1), (v2,t2)]` and you do `OpLoad %v3, %v1`, then `%v3` will be of type `%t1`.
     pub parameter: SmallVec<[(u32, u32); 3]>,
     function_type: u32,
+    //Id used to reference the function in calls
+    function_id: u32,
 }
 
 ///Trait alias for the replace function that is executed when using [new_dyn](LinkReplace::dyn_new).
 pub trait RuntimeReplace =
-    Fn(&mut Builder, RuntimeFunctionSignature) -> Result<(), DynamicReplaceError> + 'static;
+    Fn(&mut Builder, &RuntimeFunctionSignature) -> Result<(), DynamicReplaceError> + 'static;
 
 pub struct DynamicReplace {
     ///Runtime executed *replace* function. Gets supplied the functions signature.
@@ -94,10 +96,18 @@ impl DynamicReplace {
             .id_ref_any()
             .unwrap();
 
+        let function_id = module.functions[index]
+            .def
+            .as_ref()
+            .unwrap()
+            .result_id
+            .unwrap();
+
         Ok(RuntimeFunctionSignature {
             return_type,
             parameter,
             function_type,
+            function_id,
         })
     }
 
@@ -105,7 +115,7 @@ impl DynamicReplace {
     fn write_new_function(
         &mut self,
         module: &mut Module,
-        mut sig: RuntimeFunctionSignature,
+        sig: &mut RuntimeFunctionSignature,
     ) -> Result<u32, DynamicReplaceError> {
         //creates the builder on the module, starts a new function, then executes the clojure on that
         // function.
@@ -132,7 +142,7 @@ impl DynamicReplace {
         let _block_id = builder.begin_block(None)?;
 
         //let the closure take over
-        (self.replace_function)(&mut builder, sig)?;
+        (self.replace_function)(&mut builder, &sig)?;
 
         //Now check if the caller has already terminated the block (via OpReturnValue) if not, throw an error
         //as we can't know what should be returned
@@ -159,8 +169,28 @@ impl DynamicReplace {
         &self,
         module: &mut Module,
         new_id: u32,
+        sig: &RuntimeFunctionSignature,
     ) -> Result<(), DynamicReplaceError> {
         //rewrite all function calls to the old function with the new id
+
+        for inst in module.all_inst_iter_mut() {
+            match inst.class.opcode {
+                Op::FunctionCall => {
+                    if let Some(call_id) = inst
+                        .operands
+                        .get_mut(0)
+                        .map(|op_ty| op_ty.id_ref_any_mut())
+                        .flatten()
+                    {
+                        if *call_id == sig.function_id {
+                            log::info!("Mutate call {} -> {}", call_id, sig.function_id);
+                            *call_id = new_id;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
 
         Ok(())
     }
@@ -195,18 +225,18 @@ impl Patch for DynamicReplace {
         }
 
         let function_instruction = &funcs[0];
-        let sig = self
+        let mut sig = self
             .find_copy_signature(&spv_mod, &function_instruction)
             .map_err(|e| spv_patcher::PatcherError::Internal(e.into()))?;
 
         let new_function_id = self
-            .write_new_function(spv_mod, sig)
+            .write_new_function(spv_mod, &mut sig)
             .map_err(|e| spv_patcher::PatcherError::Internal(e.into()))?;
-        self.rewrite_function_ids(module, new_function_id)
+        self.rewrite_function_ids(spv_mod, new_function_id, &sig)
             .map_err(|e| spv_patcher::PatcherError::Internal(e.into()))?;
         self.verify_return(&spv_mod)
             .map_err(|e| spv_patcher::PatcherError::Internal(e.into()))?;
-
+        //TODO: At this point we could DCE the old function...
         Ok(patcher)
     }
 }
