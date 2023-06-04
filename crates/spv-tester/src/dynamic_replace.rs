@@ -3,7 +3,7 @@ use marpii_rmg_shared::ResourceHandle;
 use marpii_rmg_tasks::{DownloadBuffer, UploadBuffer};
 use spv_patcher::PatcherError;
 
-use crate::{compute_task::ComputeTask, test_runs::TestRun};
+use crate::{compute_task::ComputeTask, test_runs::TestRun, validator::Validator};
 
 #[repr(C, align(16))]
 struct DynReplacePush {
@@ -119,6 +119,7 @@ impl TestRun for DynReplaceTest {
 
         //patch pipeline
         self.patch(rmg).unwrap();
+        Validator::validate_code(self.test_task.pipeline.patched_code()).unwrap();
         /*
                 println!(
                     "{}",
