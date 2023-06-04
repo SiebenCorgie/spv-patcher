@@ -6,7 +6,9 @@ members = [
 "crates/patch-binding-location-matching",
 "crates/patch-decorate-nonuniform",
 "crates/patch-function",
-"crates/vulkan-patchable-pipeline"
+"crates/vulkan-patchable-pipeline",
+"crates/spv-tester/resources/no_inline_function",
+"crates/spv-tester/resources/rust_shader_builder",
 ]
 
 
@@ -27,7 +29,8 @@ marpii = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg-shared = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg-tasks = {git = "https://gitlab.com/tendsinmende/marpii.git"}
-
+marpii-rmg-task-shared = {git = "https://gitlab.com/tendsinmende/marpii.git"}
+spirv-builder = { git = "https://github.com/LykenSol/rust-gpu", branch = "buffer-interface-block" }
 
 #marpii = {path = "../../graphics/marpii/crates/marpii"}
 #marpii-rmg = {path = "../../graphics/marpii/crates/marpii-rmg"}
