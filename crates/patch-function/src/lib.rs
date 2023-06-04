@@ -22,3 +22,4 @@ pub use constant_replace::ConstantReplace;
 pub use dynamic_replace::{DynamicReplace, RuntimeFunctionSignature, RuntimeReplace};
 pub use enumerate::{FuncDeclaration, FuncEnumerator};
 pub use function_finder::{FuncIdent, FunctionFinder};
+pub use spv_patcher::rspirv;

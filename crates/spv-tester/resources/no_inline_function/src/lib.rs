@@ -5,6 +5,7 @@ use marpii_rmg_task_shared::glam::{UVec3, Vec3Swizzles, Vec4};
 use marpii_rmg_task_shared::spirv_std::{self, spirv, Image, RuntimeArray, Sampler, TypedBuffer};
 use marpii_rmg_task_shared::ResourceHandle;
 
+#[repr(C, align(16))]
 pub struct PushLayout {
     pub src: ResourceHandle,
     pub dst: ResourceHandle,
@@ -18,7 +19,7 @@ pub fn calculation(a: u32, b: u32) -> u32 {
 }
 
 #[spirv(compute(threads(64, 1, 1)))]
-pub fn hdr_to_ldr(
+pub fn main(
     #[spirv(push_constant)] push: &PushLayout,
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(descriptor_set = 0, binding = 0, storage_buffer)] src_buffer: &RuntimeArray<

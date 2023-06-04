@@ -92,7 +92,7 @@ impl DynamicReplace {
             parameter.push((param.result_id.unwrap(), param.result_type.unwrap()));
         }
 
-        let function_type = module.functions[index].def.as_ref().unwrap().operands[0]
+        let function_type = module.functions[index].def.as_ref().unwrap().operands[1]
             .id_ref_any()
             .unwrap();
 
@@ -144,17 +144,21 @@ impl DynamicReplace {
         //let the closure take over
         (self.replace_function)(&mut builder, &sig)?;
 
+        log::info!("Successfully replaced function!");
+
         //Now check if the caller has already terminated the block (via OpReturnValue) if not, throw an error
         //as we can't know what should be returned
-        let last_op = builder.pop_instruction()?;
-        match last_op.class.opcode {
-            Op::Return | Op::ReturnValue => {}
-            _ => return Err(DynamicReplaceError::InvalidLastInstruction),
-        }
+        // TODO: reimplement, by checking whole block
+        /*
+                let last_op = builder.pop_instruction().unwrap();
+                match last_op.class.opcode {
+                    Op::Return | Op::ReturnValue => {}
+                    _ => return Err(DynamicReplaceError::InvalidLastInstruction),
+                }
 
-        //push back the instruction
-        builder.insert_into_block(spv_patcher::rspirv::dr::InsertPoint::End, last_op)?;
-
+                //push back the instruction
+                builder.insert_into_block(spv_patcher::rspirv::dr::InsertPoint::End, last_op)?;
+        */
         //Now end function
         builder.end_function()?;
 
