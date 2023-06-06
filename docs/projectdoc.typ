@@ -142,13 +142,29 @@ A second observation is, that _per-invocation non-uniform indexing_ has a finite
 
 //TODO: checkout if SPIR-T can help here.
 
-Finding non-uniform control-flow is not as easy though. The ACO compiler actually does most of its work in that are. Therefore, we reverse the problem and decorate _every_ descriptor_indexing as _NonUniform_ by default, and just remove the decoration, if we are absolutly sure that it isn't needed.
+Finding non-uniform control-flow is not as easy though. The ACO compiler actually does most of its work in that are. Therefore, we reverse the problem and decorate _every_ descriptor_indexing as _NonUniform_ by default, and just remove the decoration, if we are absolutely sure that it isn't needed.
 
 TODO: Benchmark the result for performance regression.
 
 === Implementation
 
+The implementation has four stages:
+
+1. find and cache variables with an potentially non-uniform value (`seed_variables`)
+2. find all `OpAccessChain` OPs that access a RuntimeArray, and trace the indices. (`trace_indices`)
+3. decorate `OpAccessChain` on RuntimeArrays with non-uniform index (`decorate`)
+4. fix module extensions and capabilities by adding `SPV_EXT_descriptor_indexing` and all non-uniform capabilities (`fix_capabilities_and_extensions`)
+
+In practice some of the added capabilities might not be needed. However, they do not influence the resulting ISA-code, since capabilities only signal the possibility of non-uniform access.
+The pass might decorate _too many_ access as `NonUniform`. The performance implication must be tested in the benchmark.
+
 === Performance comparison
+
+Todo:
+- Compare pass-decorated vs hand-decorated for runtime performance
+- Check time needed for the patch
+
+
 == Shader interface transformation
 === Input / Output matching
 ==== Problem description
@@ -158,31 +174,48 @@ TODO: Benchmark the result for performance regression.
 ==== Binding description Vulkan
 ==== Binding description OpenCL
 ==== Implementation
+
 == Function injection
 === Handling functions in shader code
-- Often heavily inlined
-- Maybe create artificial callsite
-=== Linking
+
+Shaders/Kernels are often small, GPU specialised programs. A property of this GPU-Specialisation is that the programmer, and compiler try to eliminate invocation-group wide controll-flow divergence. This combination often results in highly inline programs with few function calls.
+
+SPIR-V contains a `DontInline` hint, but this cannot be used in all front ends. Namely GLSLang (the GLSL-compiler) which is often used for Shader programming does not contain a way to annotate functions in any way.
+
+We therefore have a problem when it comes to identifying a certain callsite in SPIR-V modules. Because those might already be inlined.
+
+The solution is to come up with two versions of the function-patching mechanism.
+
+1. Linking-like replacement of function
+2. Injecting custom function call as variable assignment
+
+=== Linking or replacing
+
+This patch is the simplest methode. We enumerate all found functions in a module and let the _patcher_ decide which function's body is replaced.
+The patch only needs to match the function's signature and return type.
+
+==== Implementation
+
+- known function enumeration
+- argument id matching to new code
+
 === Injection
 
+When injecting we insert the custom function into the module. The _patcher_ can then select a variable (or multiple) in the _main controll flow_ with a type that matches the function's return type. The correct variable might be identifyable by debug information like a variable name string.
+The patch then injects custom code that executes the inserted function and writes the result to the selected variable.
 
-= Implementation
+TODO: discuss custom instruction extension if we would have controll over the template's compiler
 
-#lorem(40)
+==== Implementation
+
+- variable enumeration based on return type
+- DCE pass to remove unneeded code for mutated variable
+
 = Testing
 
 #lorem(40)
 = Benchmarking
 
-#lorem(40)
-
-test text this is text
-
-
-This is another text
-
-
-
-$ Q = rho A v + C $
+= Conclusion
 
 #bibliography("works.bib")

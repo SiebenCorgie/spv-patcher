@@ -5,25 +5,21 @@
 //! 2. Assignment rewrite: Rewrites a known variable to be assigned base on a supplied function. This pass requires the user to
 //!    route possibly needed arguments to the function.
 #![deny(warnings)]
-
-///Replaces a known function (or import-marked function) with a given function.
-mod link_replace;
+#![feature(trait_alias)]
+//Replaces a known function (or import-marked function) with a given function.
+//mod link_replace;
 
 ///Assingment rewrite of some value by function calling. Only the return type has to match the
 /// rewritten variables type, but arguments have to be routed.
 mod assignment_rewrite;
+mod constant_replace;
+mod dynamic_replace;
+mod enumerate;
+mod function_finder;
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use assignment_rewrite::AssignmentRewrite;
+pub use constant_replace::ConstantReplace;
+pub use dynamic_replace::{DynamicReplace, RuntimeFunctionSignature, RuntimeReplace};
+pub use enumerate::{FuncDeclaration, FuncEnumerator};
+pub use function_finder::{FuncIdent, FunctionFinder};
+pub use spv_patcher::rspirv;

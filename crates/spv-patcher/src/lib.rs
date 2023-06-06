@@ -4,11 +4,13 @@
 //!
 //! It is structured in (currently) three main passes.
 //!
-//! - Disassamble / Assamble: Takes care of loading / dissasabling a SpirV module.
+//! - Disassamble / Assamble: Takes care of loading / disassabling a SpirV module.
 //! - Patch: defines the `Patch` API, as well as implemented patching passes.
 //! - Verify: Provides custom verification methods, as well as using `spirv-val` to verify a SpirV module.
 //!
 #![deny(warnings)]
+
+use std::error::Error;
 
 use thiserror::Error;
 
@@ -31,4 +33,6 @@ pub enum PatcherError {
     MultipleEntryPoints,
     #[error("Could not load SPIR-V binary, no entry-point exists")]
     NoEntryPoint,
+    #[error("Patch internal runtime error: {0}")]
+    Internal(Box<dyn Error>),
 }

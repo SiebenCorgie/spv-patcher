@@ -18,6 +18,9 @@ layout(set = 0, binding = 0) buffer GlobalBuffers{
     uint dta[];
 } global_buffer[];
 
+uint calculate(uint a, uint b){
+    return a + b;
+}
 
 //running in 64 waves
 layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
@@ -31,6 +34,6 @@ void main(){
   uint src = global_buffer[get_index(push.src)].dta[widx];
 
   const uint i = 33;
-  uint result = src + i;
+  uint result = calculate(i, src);
   global_buffer[get_index(push.dst)].dta[widx] = result;
 }

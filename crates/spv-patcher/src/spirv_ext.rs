@@ -1,5 +1,4 @@
 //! Extensions to SPIR-V module. Adds querying capability and analysis.
-
 use rspirv::{
     dr::{Instruction, Operand},
     spirv::{Capability, Decoration, ExecutionModel, Op, Word},
@@ -91,8 +90,29 @@ impl SpirvExt for rspirv::dr::Module {
         }
     }
 
-    fn get_by_name(&self, _name: &str) -> Option<&Instruction> {
-        None
+    fn get_by_name(&self, name: &str) -> Option<&Instruction> {
+        let mut search_id = None;
+        for inst in self.debug_names.iter() {
+            if let (Some(id), Operand::LiteralString(dbg)) =
+                (inst.operands[0].id_ref_any(), &inst.operands[1])
+            {
+                if dbg == name {
+                    search_id = Some(id);
+                    break;
+                }
+            }
+        }
+
+        if let Some(search_id) = search_id {
+            for inst in self.all_inst_iter() {
+                if inst.result_id == Some(search_id) {
+                    return Some(inst);
+                }
+            }
+            None
+        } else {
+            None
+        }
     }
 
     fn get_name(&self, id: u32) -> Option<String> {
