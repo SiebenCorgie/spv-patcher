@@ -4,6 +4,8 @@
 
 SPIR-V patching utility operating on the IR level to patch new code, or specialise existing code.
 
+[![dependency status](https://deps.rs/repo/gitlab/tendsinmende/spv-patcher/status.svg)](https://deps.rs/repo/gitlab/tendsinmende/spv-patcher)
+
 </div>
 
 
