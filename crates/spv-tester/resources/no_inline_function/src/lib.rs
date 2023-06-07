@@ -1,8 +1,8 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
 #![feature(asm_experimental_arch)]
 
-use marpii_rmg_task_shared::glam::{UVec3, Vec3Swizzles, Vec4};
-use marpii_rmg_task_shared::spirv_std::{self, spirv, Image, RuntimeArray, Sampler, TypedBuffer};
+use marpii_rmg_task_shared::glam::UVec3;
+use marpii_rmg_task_shared::spirv_std::{spirv, RuntimeArray, TypedBuffer};
 use marpii_rmg_task_shared::ResourceHandle;
 
 #[repr(C, align(16))]

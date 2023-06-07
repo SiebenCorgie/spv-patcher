@@ -30,7 +30,7 @@ marpii-rmg = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg-shared = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg-tasks = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg-task-shared = {git = "https://gitlab.com/tendsinmende/marpii.git"}
-spirv-builder = { git = "https://github.com/LykenSol/rust-gpu", branch = "buffer-interface-block" }
+spirv-builder = { git = "https://github.com/LykenSol/rust-gpu", rev = "d78df7e40f860efe85ef369fed10da2f2940bb70" }
 
 #marpii = {path = "../../graphics/marpii/crates/marpii"}
 #marpii-rmg = {path = "../../graphics/marpii/crates/marpii-rmg"}

@@ -1,5 +1,5 @@
 use std::{
-    fs::{create_dir_all, File},
+    fs::create_dir_all,
     path::{Path, PathBuf},
 };
 
@@ -116,18 +116,14 @@ fn build_glsl(path: &str, target: &str) {
     }
 }
 
-const RESDIR: &str = "../";
+const RESDIR: &str = "..";
 
 // Builds rust shader crate and all glsl shaders.
 fn main() {
+    println!("cargo:rerun-if-changed=../compute_add.comp");
+    println!("cargo:rerun-if-changed=../forward_declare.comp");
+    println!("cargo:rerun-if-changed=../nonuniform_patch.comp");
     println!("cargo:rerun-if-changed=../no_inline_function");
-    println!("cargo:rerun-if-changed=../shader_forward");
-    println!("cargo:rerun-if-changed=../shader_shadow");
-    println!("cargo:rerun-if-changed=../shader_hdr_ldr");
-    println!("cargo:rerun-if-changed=../shader_depth_pre_pass");
-    println!("cargo:rerun-if-changed=../shader_ao_compute");
-    println!("cargo:rerun-if-changed=../resources");
-    println!("cargo:rerun-if-changed=../mosaic_shader/glsl");
 
     //build shader crate. generates a module per entry point
     compile_rust_shader("no_inline_function", "../no_inline_function", RESDIR).unwrap();
