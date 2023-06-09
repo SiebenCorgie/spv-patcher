@@ -11,3 +11,4 @@ log.workspace = true
 ahash.workspace = true
 smallvec.workspace = true
 thiserror.workspace = true
+bytemuck.workspace = true
