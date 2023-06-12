@@ -1,10 +1,10 @@
 //! Extensions to SPIR-V module. Adds querying capability and analysis.
 use rspirv::{
     dr::{Instruction, Operand},
-    spirv::{Capability, Decoration, ExecutionModel, Op, Word},
+    spirv::{Capability, Decoration, ExecutionModel, Op},
 };
 
-pub struct InstructionTree {}
+use crate::type_tree::TypeTree;
 
 pub trait SpirvExt {
     ///Returns true if the extension is loaded in that module
@@ -24,7 +24,7 @@ pub trait SpirvExt {
     ///Returns the execution model of this Module. Note that we, per-definition, only have one entry point per [Module](crate::Module).
     fn get_execution_model(&self) -> ExecutionModel;
 
-    fn get_participating_trees(&self, id: Word) -> Option<InstructionTree>;
+    fn build_type_tree(&self) -> TypeTree;
 }
 
 impl SpirvExt for rspirv::dr::Module {
@@ -126,7 +126,7 @@ impl SpirvExt for rspirv::dr::Module {
         None
     }
 
-    fn get_participating_trees(&self, _id: Word) -> Option<InstructionTree> {
-        None
+    fn build_type_tree(&self) -> TypeTree {
+        TypeTree::from_module(self)
     }
 }

@@ -70,7 +70,8 @@ impl IrState {
     pub fn into_spirt(&mut self) {
         if let IrState::SpirV(spv) = self {
             let ctx = Rc::new(spirt::Context::new());
-            let spv_bytes: Vec<u8> = bytemuck::allocation::cast_vec(spv.assemble());
+            let spv_code = spv.assemble();
+            let spv_bytes: Vec<u8> = bytemuck::cast_slice(&spv_code).to_vec();
             let module = spirt::Module::lower_from_spv_bytes(ctx.clone(), spv_bytes).unwrap();
             *self = IrState::SpirT { ctx, module }
         }

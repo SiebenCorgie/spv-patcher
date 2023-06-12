@@ -11,3 +11,5 @@ spirt.workspace = true
 thiserror.workspace = true
 log.workspace = true
 bytemuck = {workspace = true, features = ["extern_crate_alloc"]}
+smallvec.workspace = true
+ahash.workspace = true

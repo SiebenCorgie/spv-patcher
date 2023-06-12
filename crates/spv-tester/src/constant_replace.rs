@@ -1,7 +1,13 @@
 use marpii::resources::PushConstant;
 use marpii_rmg_shared::ResourceHandle;
 use marpii_rmg_tasks::{DownloadBuffer, UploadBuffer};
-use patch_function::{ConstantReplace, rspirv::spirv::FunctionControl};
+use patch_function::{
+    rspirv::{
+        dr::Operand,
+        spirv::{FunctionControl, LinkageType},
+    },
+    ConstantReplace,
+};
 use spv_patcher::PatcherError;
 
 use crate::{compute_task::ComputeTask, test_runs::TestRun, validator::Validator};
@@ -19,7 +25,7 @@ impl Default for ConstReplacePush {
         ConstReplacePush {
             src: ResourceHandle::INVALID,
             dst: ResourceHandle::INVALID,
-            wave_size: DynReplaceTest::BUFSIZE as u32,
+            wave_size: ConstReplaceTest::BUFSIZE as u32,
             pad0: 0,
         }
     }
@@ -32,7 +38,7 @@ pub struct ConstReplaceTest {
     dst_data: DownloadBuffer<u32>,
     //Represents our GPU site test task
     test_task: ComputeTask<ConstReplacePush, u32>,
-    replacement_patch: ConstantReplace
+    replacement_patch: ConstantReplace,
 }
 
 impl ConstReplaceTest {
@@ -58,18 +64,64 @@ impl ConstReplaceTest {
         )
         .unwrap();
 
-
+        //Build a module that basically consists of
+        // fn f(a: u32, b: u32) -> u32{
+        //     let tmp = a * b;
+        //     return tmp;
+        // }
         let replacement_module = {
-            spv_patcher::rspirv::dr::Builder::new()
-                .begin_function(return_type, function_id, FunctionControl::empty(), function_type)
-                ayye fix me
+            let mut builder = spv_patcher::rspirv::dr::Builder::new();
+
+            builder.capability(patch_function::rspirv::spirv::Capability::Shader);
+            builder.capability(patch_function::rspirv::spirv::Capability::VulkanMemoryModel);
+            builder.capability(patch_function::rspirv::spirv::Capability::Linkage);
+            builder.memory_model(
+                patch_function::rspirv::spirv::AddressingModel::Logical,
+                patch_function::rspirv::spirv::MemoryModel::Vulkan,
+            );
+
+            let entry_point_id = builder.id();
+            //decorate function as export
+            builder.decorate(
+                entry_point_id,
+                patch_function::rspirv::spirv::Decoration::LinkageAttributes,
+                [
+                    Operand::LiteralString("replacement_function".to_owned()),
+                    LinkageType::Export.into(),
+                ],
+            );
+
+            //u32 type id
+            let u32_type = builder.type_int(32, 0);
+            //function f(u32, u32) -> u32;
+            let function_type = builder.type_function(u32_type, [u32_type, u32_type]);
+            let _function_id = builder.begin_function(
+                u32_type,
+                Some(entry_point_id),
+                FunctionControl::empty(),
+                function_type,
+            );
+
+            let arg1 = builder.function_parameter(u32_type).unwrap();
+            let arg2 = builder.function_parameter(u32_type).unwrap();
+
+            builder.begin_block(None).unwrap();
+            let retid = builder.i_mul(u32_type, None, arg1, arg2).unwrap();
+
+            builder.ret_value(retid).unwrap();
+            builder.end_function().unwrap();
+
+            builder.module()
         };
+
+        let replacement_patch = ConstantReplace::new(replacement_module, 0)
+            .map_err(|e| PatcherError::Internal(e.into()))?;
 
         Ok(ConstReplaceTest {
             test_task,
             src_data: src,
             dst_data: dst,
-            replacement_patch
+            replacement_patch,
         })
     }
 
@@ -77,24 +129,7 @@ impl ConstReplaceTest {
         self.test_task.pipeline.patch_pipeline(rmg, |patch| {
             patch
                 //.print()
-                .patch(patch_function::ConstantReplace::new(
-                    patch_function::FuncIdent::Name("calculation".to_owned()),
-                    |builder, sig| {
-                        //we use IMUL to multiply the two arguments and store that into a new id that is returned
-                        let a = &sig.parameter[0];
-                        let b = &sig.parameter[1];
-                        assert!(
-                            (a.1 == b.1) && (a.1 == sig.return_type),
-                            "Types do not match!"
-                        );
-                        //add imul
-                        let res_id = builder.i_mul(sig.return_type, None, a.0, b.0).unwrap();
-
-                        //now assign result to return instruction
-                        let _ = builder.ret_value(res_id).unwrap();
-                        Ok(())
-                    },
-                ))
+                .patch(self.replacement_patch.clone())
         })
     }
 }

@@ -19,6 +19,7 @@ pub enum ConstantReplaceError {
 
 ///Declares a *whole* spirv module and a function index into the module that will replace a function with the same identification
 /// within a module that is being patched.
+#[derive(Clone)]
 pub struct ConstantReplace {
     ///Module from which the replacement code is taken
     pub replacement_module: Module,
@@ -58,6 +59,16 @@ impl ConstantReplace {
             ident,
         })
     }
+
+    //Merge
+    pub fn merge_modules(
+        &self,
+        _lowered: &spv_patcher::spirt::Module,
+        _dst: &mut spv_patcher::spirt::Module,
+    ) {
+        //we merge the modul by first appending our `lowered` module into `dst`, including the export notation.
+        // After that we
+    }
 }
 
 impl Patch for ConstantReplace {
@@ -65,7 +76,7 @@ impl Patch for ConstantReplace {
         self,
         mut patcher: spv_patcher::patch::Patcher<'a>,
     ) -> Result<spv_patcher::patch::Patcher<'a>, spv_patcher::PatcherError> {
-        let (_spirt, spttcx) = patcher.ir_state.as_spirt();
+        let (spirt, spttcx) = patcher.ir_state.as_spirt();
 
         //For constant replace we need to merge the patcher's *context* and the
         // context of the module we are merging.
@@ -76,14 +87,22 @@ impl Patch for ConstantReplace {
 
         //lower `replacement_module` into spir
         let to_lower_spv = self.replacement_module.assemble();
-        let lowered = spv_patcher::spirt::Module::lower_from_spv_bytes(
+        let printer = spv_patcher::DisassamblerPrinter::from_words(&to_lower_spv);
+        log::info!("SPVPATCH:\n{}", printer);
+
+        let lowered_replacment = spv_patcher::spirt::Module::lower_from_spv_bytes(
             spttcx.clone(),
-            bytemuck::cast_vec(to_lower_spv),
+            bytemuck::cast_slice(&to_lower_spv).to_vec(),
         )?;
 
         eprintln!(
-            "{}",
-            spv_patcher::spirt::print::Plan::for_module(&lowered).pretty_print()
+            "\nREPLACEMENT:\n{}\n",
+            spv_patcher::spirt::print::Plan::for_module(&lowered_replacment).pretty_print()
+        );
+
+        eprintln!(
+            "\nDST:\n{}\n",
+            spv_patcher::spirt::print::Plan::for_module(&spirt).pretty_print()
         );
 
         //TODO find function in `lowered` and write it to
