@@ -17,10 +17,10 @@ use std::{
 mod compute_task;
 ///Constant mutation test. Takes a compute shader and mutates a constant that is added to a buffer.
 mod const_mutate;
+mod constant_replace;
 mod dynamic_replace;
 mod function_finder;
 mod non_uniform;
-mod print;
 mod test_runs;
 mod validator;
 
@@ -65,9 +65,18 @@ fn main() {
     };
 
     //Load Vulkan context for GPGPU workload
-    //TODO read ENV-Variable or something for existence, and check if we are in a Debug build instead.
-    let validation_layer = true;
-    let ctx = Ctx::new_default_headless(validation_layer).unwrap();
+    let validation = {
+        let is_available = marpii::context::Instance::load()
+            .unwrap()
+            .is_layer_available("VK_LAYER_KHRONOS_validation");
+
+        if is_available {
+            log::info!("Starting Vulkan with validation layers!");
+        }
+        is_available
+    };
+
+    let ctx = Ctx::new_default_headless(validation).unwrap();
     let mut rmg = Rmg::new(ctx).unwrap();
 
     let mut args = std::env::args();

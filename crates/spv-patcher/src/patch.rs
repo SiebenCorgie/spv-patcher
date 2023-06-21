@@ -44,8 +44,8 @@ impl IrState {
         }
     }
 
-    ///Returns current state as SpirV-IR. Might translate if needed.
-    pub fn as_spirv(&mut self) -> &mut rspirv::dr::Module {
+    ///Transforms the internal representation into SPIR-V.
+    pub fn into_spirv(&mut self) {
         if let IrState::SpirT { module, .. } = self {
             let emitter = module
                 .lift_to_spv_module_emitter()
@@ -54,7 +54,10 @@ impl IrState {
 
             *self = IrState::SpirV(spv);
         };
+    }
 
+    ///Returns current state as SpirV-IR. Might translate if needed.
+    pub fn as_spirv(&mut self) -> &mut rspirv::dr::Module {
         //Return module
         if let IrState::SpirV(s) = self {
             s
@@ -63,16 +66,21 @@ impl IrState {
         }
     }
 
-    pub fn as_spirt(&mut self) -> &mut spirt::Module {
+    ///Transforms the internal state into a SPIR-T representation.
+    pub fn into_spirt(&mut self) {
         if let IrState::SpirV(spv) = self {
             let ctx = Rc::new(spirt::Context::new());
-            let spv_bytes: Vec<u8> = bytemuck::allocation::cast_vec(spv.assemble());
+            let spv_code = spv.assemble();
+            let spv_bytes: Vec<u8> = bytemuck::cast_slice(&spv_code).to_vec();
             let module = spirt::Module::lower_from_spv_bytes(ctx.clone(), spv_bytes).unwrap();
             *self = IrState::SpirT { ctx, module }
         }
+    }
 
-        if let IrState::SpirT { ctx: _, module } = self {
-            module
+    pub fn as_spirt(&mut self) -> (&mut spirt::Module, Rc<spirt::Context>) {
+        self.into_spirt();
+        if let IrState::SpirT { ctx, module } = self {
+            (module, ctx.clone())
         } else {
             panic!("Failed to lower to spir-t")
         }

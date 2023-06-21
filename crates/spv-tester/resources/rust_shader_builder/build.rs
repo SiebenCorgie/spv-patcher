@@ -86,7 +86,19 @@ pub fn compile_rust_shader(
     Ok(())
 }
 
-#[allow(dead_code)]
+fn glslang_exists() -> bool {
+    match std::process::Command::new("glslangValidator").spawn() {
+        Ok(_) => true,
+        Err(e) => {
+            if let std::io::ErrorKind::NotFound = e.kind() {
+                false
+            } else {
+                true
+            }
+        }
+    }
+}
+
 fn build_glsl(path: &str, target: &str) {
     //TODO: build all files that do not end with ".glsl". and copy to
     // RESDIR as well.
@@ -125,6 +137,7 @@ fn main() {
     println!("cargo:rerun-if-changed=../nonuniform_patch.comp");
     println!("cargo:rerun-if-changed=../no_inline_function");
 
+    assert!(glslang_exists(), "glslangValidator does not exist. Consider installing it locally in order to be able to compile the GLSL template Shader.");
     //build shader crate. generates a module per entry point
     compile_rust_shader("no_inline_function", "../no_inline_function", RESDIR).unwrap();
 

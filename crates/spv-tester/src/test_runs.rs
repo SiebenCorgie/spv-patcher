@@ -3,8 +3,9 @@
 use std::fmt::{Debug, Display};
 
 use crate::{
-    const_mutate::ConstMutateTest, dynamic_replace::DynReplaceTest,
-    function_finder::FuncFinderTest, non_uniform::NonUniformTest, BlessedDB,
+    const_mutate::ConstMutateTest, constant_replace::ConstReplaceTest,
+    dynamic_replace::DynReplaceTest, function_finder::FuncFinderTest, non_uniform::NonUniformTest,
+    BlessedDB,
 };
 use marpii_rmg::{Rmg, RmgError};
 use marpii_rmg_tasks::{NoTaskError, TaskError};
@@ -41,6 +42,7 @@ pub fn parse_test_run(name: &str, rmg: &mut Rmg) -> Option<Box<dyn TestRun>> {
         "non_uniform_patch" => Some(Box::new(NonUniformTest::load(rmg).unwrap())),
         "function_finder" => Some(Box::new(FuncFinderTest::new())),
         "dyn_replace" => Some(Box::new(DynReplaceTest::load(rmg).unwrap())),
+        "const_replace" => Some(Box::new(ConstReplaceTest::load(rmg).unwrap())),
         _ => {
             log::error!("No test named \"{}\" found!", name);
             None

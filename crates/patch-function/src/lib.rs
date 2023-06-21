@@ -6,8 +6,6 @@
 //!    route possibly needed arguments to the function.
 #![deny(warnings)]
 #![feature(trait_alias)]
-//Replaces a known function (or import-marked function) with a given function.
-//mod link_replace;
 
 ///Assingment rewrite of some value by function calling. Only the return type has to match the
 /// rewritten variables type, but arguments have to be routed.
