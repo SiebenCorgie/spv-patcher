@@ -23,6 +23,8 @@ pub enum ConstantReplaceError {
     BuilderError(#[from] spv_patcher::rspirv::dr::Error),
     #[error("IO Error: {0}")]
     IoError(#[from] std::io::Error),
+    #[error("Could not parse back linked module. This is probably a spirv-link error: {0}")]
+    ParseBack(String),
 }
 
 ///Declares a *whole* spirv module and a function index into the module that will replace a function with the same identification
@@ -91,8 +93,6 @@ impl ConstantReplace {
 
             let mut linkage_name = String::with_capacity(0);
             'linkage_search_loop: for dec in self.replacement_module.annotations.iter() {
-                log::info!("dec: {:#?}", dec);
-
                 match (dec.operands.get(0), dec.operands.get(1)) {
                     (
                         Some(Operand::IdRef(r)),
@@ -203,10 +203,17 @@ impl ConstantReplace {
     fn call_linker(&self, dst: &mut Module) -> Result<(), ConstantReplaceError> {
         const LINK_DST_FILENAME: &'static str = "dst_linkable.spv";
         const LINK_PATCH_FILENAME: &'static str = "patch_linkable.spv";
+        const LINK_FINAL_FILENAME: &'static str = "patched.spv";
 
         let assembled_dst = dst.assemble();
         let assembled_patch = self.replacement_module.assemble();
-
+        /*
+                for f in [LINK_DST_FILENAME, LINK_PATCH_FILENAME, LINK_FINAL_FILENAME] {
+                    if std::path::Path::new(f).exists() {
+                        std::fs::remove_file(f).unwrap();
+                    }
+                }
+        */
         //write both to a file, sadly, the linker can not yet read from stdin.
         let dst_linkable_file = std::fs::OpenOptions::new()
             .create(true)
@@ -223,6 +230,8 @@ impl ConstantReplace {
             .open(LINK_PATCH_FILENAME)?;
         let mut patch_writer = BufWriter::new(patch_linkable_file);
         patch_writer.write(bytemuck::cast_slice(&assembled_patch))?;
+        dst_writer.flush().unwrap();
+        patch_writer.flush().unwrap();
 
         //now try to call the linker
 
@@ -230,15 +239,39 @@ impl ConstantReplace {
             .args([
                 "--verify-ids",
                 "-o",
-                "patched.spv",
+                LINK_FINAL_FILENAME,
                 LINK_DST_FILENAME,
                 LINK_PATCH_FILENAME,
             ])
             .output();
 
+        //try to read back stdout as the result file/data
         match out {
-            Ok(r) => log::info!("Successfully linked files: {:?}!", r),
-            Err(e) => log::error!("Failed to link files!\n{}", e),
+            Ok(r) => {
+                assert!(r.status.success());
+                log::info!("Successfully linked files!");
+            }
+            Err(e) => {
+                log::error!("Failed to link files!\n{}", e);
+                return Err(ConstantReplaceError::IoError(e));
+            }
+        };
+
+        let res_data = std::fs::read(LINK_FINAL_FILENAME).unwrap();
+
+        let module = spv_patcher::rspirv::dr::load_bytes(res_data)
+            .map_err(|e| ConstantReplaceError::ParseBack(e.to_string()))?;
+        *dst = module;
+
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        //remove files if we shouldn't keep them
+        if !self.keep_temporary_files {
+            for f in [LINK_DST_FILENAME, LINK_PATCH_FILENAME, LINK_FINAL_FILENAME] {
+                if let Err(e) = std::fs::remove_file(f) {
+                    log::error!("Failed to remove {}: {}", f, e);
+                }
+            }
         }
 
         Ok(())
