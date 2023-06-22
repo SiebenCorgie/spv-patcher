@@ -5,6 +5,9 @@
 //! Writes down the result as a json file and possibly compares it to another json-result file for regression.
 #![deny(warnings)]
 
+mod bench;
+mod reporter;
+
 fn main() {
     println!("Hello, world!");
 }
