@@ -1,0 +1,36 @@
+#version 460
+//GLSL Compute shader that adds a constant.
+
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_nonuniform_qualifier : require
+#include "shared.glsl"
+
+
+
+layout( push_constant ) uniform Push{
+  ResHandle src;
+  ResHandle dst;
+  uint size;
+  uint pad;
+} push;
+
+layout(set = 0, binding = 0) buffer GlobalBuffers{
+    uint dta[];
+} global_buffer[];
+
+
+//running in 64 waves
+layout (local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+void main(){
+  uint widx = gl_GlobalInvocationID.x;
+
+  if (widx >= push.size){
+      return;
+  }
+
+  uint src = global_buffer[get_index(push.src)].dta[widx];
+
+  const uint i = 33;
+  uint result = src + i;
+  global_buffer[get_index(push.dst)].dta[widx] = result;
+}

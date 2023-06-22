@@ -1,7 +1,9 @@
 use ahash::AHashMap;
+use serde::{Deserialize, Serialize};
 
 use crate::bench::Benchmark;
 
+#[derive(Serialize, Deserialize)]
 pub enum BenchRunType {
     Unmodified,
     PatchedCompiled,
@@ -11,6 +13,7 @@ pub enum BenchRunType {
     Other(String),
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct BenchRun {
     ///Type of the test run
     ty: BenchRunType,
@@ -18,6 +21,7 @@ pub struct BenchRun {
 }
 
 ///Reporter for a single benchmark run
+#[derive(Serialize, Deserialize)]
 pub struct Reporter {
     benches: AHashMap<String, Vec<BenchRun>>,
 }

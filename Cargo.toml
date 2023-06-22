@@ -9,6 +9,8 @@ members = [
 "crates/vulkan-patchable-pipeline",
 "crates/spv-tester/resources/no_inline_function",
 "crates/spv-tester/resources/rust_shader_builder",
+"crates/spv-benchmark/resources/benchmark_shader_builder",
+"crates/spv-benchmark/resources/bench_const_replace",
 ]
 
 
@@ -24,6 +26,9 @@ bytemuck = "1"
 serde = "1"
 serde_json = "1"
 smallvec = "1.10"
+image = "0.24"
+colorgrad = "0.6.2"
+
 #our vulkan runtime
 marpii = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg = {git = "https://gitlab.com/tendsinmende/marpii.git"}
