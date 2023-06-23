@@ -11,6 +11,7 @@ members = [
 "crates/spv-tester/resources/rust_shader_builder",
 "crates/spv-benchmark/resources/benchmark_shader_builder",
 "crates/spv-benchmark/resources/bench_const_replace",
+"crates/spv-benchmark/resources/bench_const_replace_mandelbrot",
 ]
 
 

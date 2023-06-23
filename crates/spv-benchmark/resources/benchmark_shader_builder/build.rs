@@ -138,6 +138,12 @@ fn main() {
     assert!(glslang_exists(), "glslangValidator does not exist. Consider installing it locally in order to be able to compile the GLSL template Shader.");
     //build shader crate. generates a module per entry point
     compile_rust_shader("bench_const_replace", "../bench_const_replace", RESDIR).unwrap();
+    compile_rust_shader(
+        "bench_const_replace_mandelbrot",
+        "../bench_const_replace_mandelbrot",
+        RESDIR,
+    )
+    .unwrap();
 
     let glsl_files = ["../compute_add.comp"];
 

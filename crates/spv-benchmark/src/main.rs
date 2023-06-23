@@ -21,6 +21,7 @@ pub const RUN_COUNT: usize = 10;
 fn run_bench(benchmark: &mut dyn Benchmark, reporter: &mut Reporter, rmg: &mut Rmg) {
     log::info!("Running benchmark: {}", benchmark.name());
     benchmark.bench_unmodified(rmg, reporter, RUN_COUNT);
+    benchmark.bench_patched_compiled(rmg, reporter, RUN_COUNT);
 }
 
 fn main() {

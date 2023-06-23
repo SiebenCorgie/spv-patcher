@@ -1,13 +1,15 @@
 use marpii::resources::PushConstant;
 use marpii_rmg_shared::ResourceHandle;
 use marpii_rmg_tasks::{DownloadBuffer, UploadBuffer};
-use spv_patcher::PatcherError;
+use spv_patcher::{patch::Patcher, PatcherError};
 
 use crate::{bench_task::ComputeTask, buffer_to_image::safe_as_image};
 
 use super::Benchmark;
 
 const REPLACE_SPV: &'static [u8] = include_bytes!("../../resources/bench_const_replace.spv");
+const PATCHED_COMPILED_SPV: &'static [u8] =
+    include_bytes!("../../resources/bench_const_replace_mandelbrot.spv");
 
 #[repr(C, align(16))]
 struct DynReplacePush {
@@ -43,7 +45,25 @@ pub struct DynReplaceBench {
 }
 
 impl DynReplaceBench {
-    const RESOLUTION: [u32; 2] = [2048, 2048];
+    const RESOLUTION: [u32; 2] = [1024, 1024];
+
+    ///Loads the shader code as `bench_task`.
+    fn load_shader(&mut self, rmg: &mut marpii_rmg::Rmg, shader: &[u8]) {
+        let dst_hdl = self.dst_data.gpu_handle().clone();
+        self.bench_task = ComputeTask::new(
+            rmg,
+            shader.to_vec(),
+            vec![],
+            vec![dst_hdl.clone()],
+            Self::RESOLUTION,
+            move |push: &mut PushConstant<DynReplacePush>, resources, _ctx| {
+                //push.get_content_mut().src = resources.resource_handle_or_bind(&src_hdl).unwrap();
+                push.get_content_mut().dst = resources.resource_handle_or_bind(&dst_hdl).unwrap();
+                push.get_content_mut().width = Self::RESOLUTION[0];
+                push.get_content_mut().height = Self::RESOLUTION[1];
+            },
+        );
+    }
 
     //loads the shader
     pub fn load(rmg: &mut marpii_rmg::Rmg) -> Result<Self, PatcherError> {
@@ -55,6 +75,7 @@ impl DynReplaceBench {
             DownloadBuffer::new_for(rmg, (Self::RESOLUTION[0] * Self::RESOLUTION[1]) as usize)
                 .unwrap();
         let dst_hdl = dst.gpu_handle();
+
         let bench_task = ComputeTask::new(
             rmg,
             REPLACE_SPV.to_vec(),
@@ -110,6 +131,44 @@ impl Benchmark for DynReplaceBench {
         reporter: &mut crate::reporter::Reporter,
         runs: usize,
     ) {
+        //Be sure that we use the correct code
+        self.load_shader(rmg, PATCHED_COMPILED_SPV);
+
+        for idx in 0..runs {
+            //Run bench
+            rmg.record()
+                //.add_task(&mut self.src_data)
+                //.unwrap()
+                .add_task(&mut self.bench_task)
+                .unwrap()
+                .execute()
+                .unwrap();
+
+            //Wait for the timings and report
+            let timing_ns = self.bench_task.get_last_timing();
+            reporter.report_patched_compiled(self, timing_ns);
+
+            //If we are the last run, an the flag is set, write back as image.
+            if idx == (runs - 1) && self.safe_last_as_image {
+                //download last buffer
+                rmg.record()
+                    .add_task(&mut self.dst_data)
+                    .unwrap()
+                    .execute()
+                    .unwrap();
+
+                let mut target_buffer =
+                    vec![0.0f32; (Self::RESOLUTION[0] * Self::RESOLUTION[1]) as usize];
+                let res = self.dst_data.download(rmg, &mut target_buffer).unwrap();
+
+                safe_as_image(
+                    Self::RESOLUTION[0],
+                    Self::RESOLUTION[1],
+                    &target_buffer,
+                    &format!("{}_patched_compiled", self.name()),
+                );
+            }
+        }
     }
     fn bench_patched_runtime(
         &mut self,
@@ -124,6 +183,9 @@ impl Benchmark for DynReplaceBench {
         reporter: &mut crate::reporter::Reporter,
         runs: usize,
     ) {
+        //Be sure that we use the correct code
+        self.load_shader(rmg, REPLACE_SPV);
+
         for idx in 0..runs {
             //Run bench
             rmg.record()
@@ -151,20 +213,6 @@ impl Benchmark for DynReplaceBench {
                     vec![0.0f32; (Self::RESOLUTION[0] * Self::RESOLUTION[1]) as usize];
                 let res = self.dst_data.download(rmg, &mut target_buffer).unwrap();
 
-                //std::thread::sleep(std::time::Duration::from_secs(2));
-
-                /*
-                for i in 0..Self::RESOLUTION[1] {
-                    for x in 0..Self::RESOLUTION[0] {
-                        print!(
-                            " {:.1} ",
-                            target_buffer[(i * Self::RESOLUTION[0] + x) as usize]
-                        );
-                    }
-                    println!();
-                }
-                */
-
                 safe_as_image(
                     Self::RESOLUTION[0],
                     Self::RESOLUTION[1],
@@ -173,9 +221,6 @@ impl Benchmark for DynReplaceBench {
                 );
             }
         }
-
-        //In this case, just load the pipeline with the unmodified code and run it
-        {}
     }
     fn name(&self) -> &str {
         "DynReplaceMandelbrot"
