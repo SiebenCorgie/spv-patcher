@@ -125,12 +125,23 @@ impl Benchmark for DynReplaceBench {
         runs: usize,
     ) {
         for idx in 0..runs {
+            //Run bench
+            rmg.record()
+                //.add_task(&mut self.src_data)
+                //.unwrap()
+                .add_task(&mut self.bench_task)
+                .unwrap()
+                .execute()
+                .unwrap();
+
+            //Wait for the timings and report
+            let timing_ns = self.bench_task.get_last_timing();
+            reporter.report_unmodified(self, timing_ns);
+
+            //If we are the last run, an the flag is set, write back as image.
             if idx == (runs - 1) && self.safe_last_as_image {
+                //download last buffer
                 rmg.record()
-                    //.add_task(&mut self.src_data)
-                    //.unwrap()
-                    .add_task(&mut self.bench_task)
-                    .unwrap()
                     .add_task(&mut self.dst_data)
                     .unwrap()
                     .execute()
@@ -160,14 +171,6 @@ impl Benchmark for DynReplaceBench {
                     &target_buffer,
                     self.name(),
                 );
-            } else {
-                rmg.record()
-                    //.add_task(&mut self.src_data)
-                    //.unwrap()
-                    .add_task(&mut self.bench_task)
-                    .unwrap()
-                    .execute()
-                    .unwrap();
             }
         }
 

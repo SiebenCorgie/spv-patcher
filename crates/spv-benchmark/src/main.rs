@@ -52,4 +52,6 @@ fn main() {
     let mut dyn_bench = bench::dyn_replace::DynReplaceBench::load(&mut rmg).unwrap();
     dyn_bench.safe_last_as_image = true;
     run_bench(&mut dyn_bench, &mut reporter, &mut rmg);
+
+    println!("Reporter: \n{:#?}", reporter);
 }

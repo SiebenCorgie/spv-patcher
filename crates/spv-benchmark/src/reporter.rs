@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::bench::Benchmark;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum BenchRunType {
     Unmodified,
     PatchedCompiled,
@@ -13,15 +13,15 @@ pub enum BenchRunType {
     Other(String),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct BenchRun {
     ///Type of the test run
     ty: BenchRunType,
-    pipeline_runtime: u64,
+    pipeline_runtime: f64,
 }
 
 ///Reporter for a single benchmark run
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Reporter {
     benches: AHashMap<String, Vec<BenchRun>>,
 }
@@ -41,7 +41,7 @@ impl Reporter {
         }
     }
 
-    pub fn report_unmodified(&mut self, benchmark: &dyn Benchmark, pipeline_runtime: u64) {
+    pub fn report_unmodified(&mut self, benchmark: &dyn Benchmark, pipeline_runtime: f64) {
         self.push_run(
             BenchRun {
                 ty: BenchRunType::Unmodified,
@@ -51,7 +51,7 @@ impl Reporter {
         );
     }
 
-    pub fn report_patched_compiled(&mut self, benchmark: &dyn Benchmark, pipeline_runtime: u64) {
+    pub fn report_patched_compiled(&mut self, benchmark: &dyn Benchmark, pipeline_runtime: f64) {
         self.push_run(
             BenchRun {
                 ty: BenchRunType::PatchedCompiled,
@@ -60,7 +60,7 @@ impl Reporter {
             benchmark.name(),
         );
     }
-    pub fn report_patched_runtime(&mut self, benchmark: &dyn Benchmark, pipeline_runtime: u64) {
+    pub fn report_patched_runtime(&mut self, benchmark: &dyn Benchmark, pipeline_runtime: f64) {
         self.push_run(
             BenchRun {
                 ty: BenchRunType::PatchedRuntime,

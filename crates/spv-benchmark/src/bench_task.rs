@@ -1,4 +1,4 @@
-use marpii::{ash::vk, resources::PushConstant};
+use marpii::{ash::vk, resources::PushConstant, util::Timestamps};
 use marpii_rmg::{BufferHandle, Rmg, Task};
 use vulkan_patchable_pipeline::PatchablePipeline;
 
@@ -16,6 +16,7 @@ pub struct ComputeTask<P: 'static, T: 'static> {
     pub read_buffers: Vec<BufferHandle<T>>,
     pub write_buffers: Vec<BufferHandle<T>>,
     pub resolution: [u32; 2],
+    pub timing_recorder: Timestamps,
     pub on_record:
         Box<dyn Fn(&mut PushConstant<P>, &mut marpii_rmg::Resources, &marpii_rmg::CtxRmg)>,
 }
@@ -77,6 +78,9 @@ impl<P: 'static, T: 'static> Task for ComputeTask<P, T> {
         //NOTE we always start workgroups of size 8x8, therefore scale dispatch by 64
         let dispatch_x = (self.resolution[0] as f32 / 8.0).ceil() as u32;
         let dispatch_y = (self.resolution[1] as f32 / 8.0).ceil() as u32;
+
+        self.timing_recorder.reset(command_buffer).unwrap();
+
         unsafe {
             device.inner.cmd_bind_pipeline(
                 *command_buffer,
@@ -91,9 +95,21 @@ impl<P: 'static, T: 'static> Task for ComputeTask<P, T> {
                 self.push.content_as_bytes(),
             );
 
+            self.timing_recorder.write_timestamp(
+                command_buffer,
+                vk::PipelineStageFlags2::TOP_OF_PIPE,
+                0,
+            );
+
             device
                 .inner
                 .cmd_dispatch(*command_buffer, dispatch_x, dispatch_y, 1);
+
+            self.timing_recorder.write_timestamp(
+                command_buffer,
+                vk::PipelineStageFlags2::BOTTOM_OF_PIPE,
+                1,
+            );
         }
     }
 }
@@ -113,6 +129,8 @@ impl<P: Default + 'static, T: 'static> ComputeTask<P, T> {
 
         let on_record = Box::new(on_record);
 
+        let timing_recorder = Timestamps::new(&rmg.ctx.device, 2).unwrap();
+
         ComputeTask {
             pipeline,
             push,
@@ -120,6 +138,18 @@ impl<P: Default + 'static, T: 'static> ComputeTask<P, T> {
             write_buffers,
             resolution,
             on_record,
+            timing_recorder,
         }
+    }
+
+    ///Returns the timing in nano seconds for the last run. Blocks until
+    /// the GPU has finished execution. Be sure the execution was submitted before.
+    pub fn get_last_timing(&mut self) -> f64 {
+        let [t0, t1, ..] = self.timing_recorder.get_timestamps_blocking().unwrap() else{
+            panic!("Could not wait for timestamps");
+        };
+        let diff = t1 - t0;
+        let ns = diff as f64 * self.timing_recorder.get_timestamp_increment() as f64;
+        ns
     }
 }
