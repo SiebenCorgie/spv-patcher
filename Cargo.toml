@@ -16,7 +16,8 @@ members = [
 
 
 [workspace.dependencies]
-rspirv = "0.11"
+#rspirv = "0.11.0+1.5.4"
+rspirv = {git = "https://github.com/gfx-rs/rspirv.git", rev = "ba1f984"}
 thiserror = "1.0"
 spirt = {git = "https://github.com/EmbarkStudios/spirt.git"}
 #spirt = {path = "../spirt"}

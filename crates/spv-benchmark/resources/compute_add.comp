@@ -30,7 +30,13 @@ void main(){
 
   uint src = global_buffer[get_index(push.src)].dta[widx];
 
-  const uint i = 33;
+  uint i = 33;
+  uint n;
+  while (n < src && n < 1234){
+      i += 1;
+      n += 2;
+  }
+
   uint result = src + i;
   global_buffer[get_index(push.dst)].dta[widx] = result;
 }

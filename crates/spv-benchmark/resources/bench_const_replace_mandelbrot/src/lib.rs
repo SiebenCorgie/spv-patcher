@@ -19,11 +19,7 @@ pub struct PushLayout {
 pub fn calculation(coord: Vec2, p: Vec2) -> f32 {
     let mut n = 0;
     let mut z = coord * 0.0;
-    while n < 128 && z.length() < 1000.0 {
-        if z.length() > 1000.0 {
-            break;
-        }
-
+    while n < 1024 && z.length() < 1000.0 {
         z = Vec2::new(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + p;
         n += 1;
     }

@@ -22,7 +22,6 @@ mod dynamic_replace;
 mod function_finder;
 mod non_uniform;
 mod test_runs;
-mod validator;
 
 const BLESSED_FILE: &'static str = "BlessedTests.json";
 

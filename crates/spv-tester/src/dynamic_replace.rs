@@ -1,9 +1,9 @@
 use marpii::resources::PushConstant;
 use marpii_rmg_shared::ResourceHandle;
 use marpii_rmg_tasks::{DownloadBuffer, UploadBuffer};
-use spv_patcher::PatcherError;
+use spv_patcher::{PatcherError, Validator};
 
-use crate::{compute_task::ComputeTask, test_runs::TestRun, validator::Validator};
+use crate::{compute_task::ComputeTask, test_runs::TestRun};
 
 #[repr(C, align(16))]
 struct DynReplacePush {

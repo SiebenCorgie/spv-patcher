@@ -24,7 +24,9 @@ pub use print::DisassamblerPrinter;
 pub mod patch;
 pub mod spirv_ext;
 pub mod type_tree;
+mod validator;
 pub mod verify;
+pub use validator::Validator;
 
 #[derive(Error, Debug)]
 pub enum PatcherError {

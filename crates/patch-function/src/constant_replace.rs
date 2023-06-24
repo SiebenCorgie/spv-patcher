@@ -248,6 +248,7 @@ impl ConstantReplace {
         //try to read back stdout as the result file/data
         match out {
             Ok(r) => {
+                println!("OUT: {:?}", r);
                 assert!(r.status.success());
                 log::info!("Successfully linked files!");
             }

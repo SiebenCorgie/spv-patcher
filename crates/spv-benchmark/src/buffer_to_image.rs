@@ -20,5 +20,5 @@ pub fn safe_as_image(width: u32, height: u32, data: &[f32], output_name: &str) {
         px.0.copy_from_slice(&col.to_rgba8()[0..3]);
     }
 
-    img.save(format!("{output_name}.png"));
+    img.save(format!("{output_name}.png")).unwrap();
 }

@@ -148,7 +148,7 @@ impl<P: Default + 'static, T: 'static> ComputeTask<P, T> {
         let [t0, t1, ..] = self.timing_recorder.get_timestamps_blocking().unwrap() else{
             panic!("Could not wait for timestamps");
         };
-        let diff = t1 - t0;
+        let diff = t1.checked_sub(*t0).unwrap_or(0);
         let ns = diff as f64 * self.timing_recorder.get_timestamp_increment() as f64;
         ns
     }

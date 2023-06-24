@@ -25,16 +25,17 @@ impl Patch for MutateConstant {
         for c in spv_mod.types_global_values.iter_mut() {
             if c.class.opcode == Op::Constant {
                 match (&mut c.operands[0], &self) {
-                    (Operand::LiteralInt32(lit), MutateConstant::Integer { from, to }) => {
+                    (Operand::LiteralBit32(lit), MutateConstant::Integer { from, to }) => {
                         if *lit == *from {
                             log::trace!("Mutatet Constant, found right const {} -> {}", from, to);
                             *lit = *to;
                         }
                     }
-                    (Operand::LiteralFloat32(lit), MutateConstant::Float { from, to }) => {
-                        if *lit == *from {
+                    (Operand::LiteralBit32(lit), MutateConstant::Float { from, to }) => {
+                        let litf32 = f32::from_bits(*lit);
+                        if litf32 == *from {
                             log::trace!("Mutatet Constant, found right const {} -> {}", from, to);
-                            *lit = *to;
+                            *lit = to.to_bits();
                         }
                     }
                     _ => {}

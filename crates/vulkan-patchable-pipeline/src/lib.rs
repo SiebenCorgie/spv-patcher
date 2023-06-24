@@ -66,6 +66,12 @@ impl PatchablePipeline {
         patching: impl FnOnce(Patcher) -> Result<Patcher, PatcherError>,
     ) -> Result<(), PatcherError> {
         let patched = patching(self.module.patch())?.assemble();
+
+        println!(
+            "Patched: \n: {}",
+            spv_patcher::DisassamblerPrinter::from_words(&patched)
+        );
+
         let patched_module =
             ShaderModule::new_from_bytes(&rmg.ctx.device, bytemuck::cast_slice(&patched)).unwrap();
 
