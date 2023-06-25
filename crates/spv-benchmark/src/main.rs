@@ -27,7 +27,7 @@ fn run_bench(benchmark: &mut dyn Benchmark, reporter: &mut Reporter, rmg: &mut R
 
 fn main() {
     simple_logger::SimpleLogger::new()
-        .with_level(log::LevelFilter::Info)
+        .with_level(log::LevelFilter::Warn)
         .init()
         .unwrap();
 
@@ -52,8 +52,15 @@ fn main() {
 
     //DynReplace benchmark
     let mut dyn_bench = bench::dyn_replace::DynReplaceBench::load(&mut rmg).unwrap();
-    dyn_bench.safe_last_as_image = true;
+    //dyn_bench.safe_last_as_image = true;
     run_bench(&mut dyn_bench, &mut reporter, &mut rmg);
+
+    let mut const_bench = bench::const_replace::ConstReplaceBench::load(&mut rmg).unwrap();
+    //const_bench.safe_last_as_image = true;
+    run_bench(&mut const_bench, &mut reporter, &mut rmg);
+
+    rmg.wait_for_idle();
+    std::thread::sleep(std::time::Duration::from_secs(1));
 
     println!("Reporter: \n{:#?}", reporter);
 }

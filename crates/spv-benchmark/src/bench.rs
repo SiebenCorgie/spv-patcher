@@ -1,5 +1,6 @@
 use crate::reporter::Reporter;
 
+pub mod const_replace;
 ///Dynamic replacement benchmark
 pub mod dyn_replace;
 

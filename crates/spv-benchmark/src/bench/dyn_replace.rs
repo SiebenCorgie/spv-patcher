@@ -290,10 +290,6 @@ impl DynReplaceBench {
                         let final_mulled =
                             builder.f_mul(ty_f32, None, const_f32_025, cosed).unwrap();
 
-                        let coord_component = builder
-                            .composite_extract(ty_f32, None, sig.parameter[1].0, [0])
-                            .unwrap();
-
                         //now assign result to return instruction
                         let _ = builder.ret_value(final_mulled).unwrap();
 
@@ -346,7 +342,7 @@ impl Benchmark for DynReplaceBench {
                     .fold((f32::INFINITY, f32::NEG_INFINITY), |(min, max), v| {
                         (min.min(*v), max.max(*v))
                     });
-                println!("COMPILED: {} .. {}", min, max);
+                //println!("COMPILED: {} .. {}", min, max);
                 safe_as_image(
                     Self::RESOLUTION[0],
                     Self::RESOLUTION[1],
@@ -398,7 +394,7 @@ impl Benchmark for DynReplaceBench {
                     .fold((f32::INFINITY, f32::NEG_INFINITY), |(min, max), v| {
                         (min.min(*v), max.max(*v))
                     });
-                println!("PATCHED: {} .. {}", min, max);
+                //println!("PATCHED: {} .. {}", min, max);
 
                 safe_as_image(
                     Self::RESOLUTION[0],
