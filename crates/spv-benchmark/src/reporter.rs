@@ -1,9 +1,10 @@
 use ahash::AHashMap;
+use graplot::{Bar, BarDesc, BarDescArg};
 use serde::{Deserialize, Serialize};
 
 use crate::bench::Benchmark;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Hash)]
 pub enum BenchRunType {
     Unmodified,
     PatchedCompiled,
@@ -11,6 +12,21 @@ pub enum BenchRunType {
     CompileTime,
     PatchTime,
     Other(String),
+}
+
+impl BarDescArg for BenchRunType {
+    fn as_bar_desc(&self) -> Vec<BarDesc> {
+        vec![self.as_single_bar_desc()]
+    }
+    fn as_single_bar_desc(&self) -> BarDesc {
+        let s = if let BenchRunType::Other(s) = self {
+            s.clone()
+        } else {
+            format!("{:?}", self)
+        };
+
+        s.as_str().as_single_bar_desc()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -68,5 +84,34 @@ impl Reporter {
             },
             benchmark.name(),
         );
+    }
+
+    ///Renders the currently known benchmark results.
+    pub fn show(&self) {
+        ///Currently rendering one graph per benchmark
+        for (bench_name, results) in &self.benches {
+            let mut bins: AHashMap<BenchRunType, Vec<f64>> = AHashMap::with_capacity(3);
+            for run in results {
+                if let Some(bin) = bins.get_mut(&run.ty) {
+                    bin.push(run.pipeline_runtime);
+                } else {
+                    bins.insert(run.ty.clone(), vec![run.pipeline_runtime]);
+                }
+            }
+
+            let names = bins
+                .keys()
+                .map(|k| k.as_single_bar_desc())
+                .collect::<Vec<_>>();
+            let results = bins
+                .values()
+                .map(|bin_res| bin_res.iter().fold(0.0f64, |max, v| max.max(*v)))
+                .collect::<Vec<_>>();
+
+            let mut bar = Bar::new(names.as_slice(), &results);
+            bar.set_title(&bench_name);
+            bar.set_xlabel("patch type");
+            bar.show();
+        }
     }
 }

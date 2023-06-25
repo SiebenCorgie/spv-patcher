@@ -43,3 +43,5 @@ spirv-builder = { git = "https://github.com/LykenSol/rust-gpu", rev = "d78df7e40
 #marpii-rmg = {path = "../../graphics/marpii/crates/marpii-rmg"}
 #marpii-rmg-shared = {path = "../../graphics/marpii/crates/marpii-rmg-shared"}
 #marpii-rmg-tasks = {path = "../../graphics/marpii/crates/marpii-rmg-tasks/marpii-rmg-tasks"}
+
+graplot = "0.1.22"

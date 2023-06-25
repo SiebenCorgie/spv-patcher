@@ -16,7 +16,7 @@ vulkan-patchable-pipeline = {path = "../vulkan-patchable-pipeline"}
 patch-function = {path = "../patch-function"}
 image.workspace = true
 colorgrad.workspace = true
-
+graplot.workspace = true
 bytemuck.workspace = true
 marpii.workspace = true
 marpii-rmg.workspace = true
