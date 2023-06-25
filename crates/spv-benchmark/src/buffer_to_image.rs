@@ -16,6 +16,7 @@ pub fn safe_as_image(width: u32, height: u32, data: &[f32], output_name: &str) {
 
     for (px, val) in img.pixels_mut().zip(data.iter()) {
         let normalized = ((val - min) / (max - min)) as f64;
+        //let normalized = val.clamp(0.0, 1.0) as f64;
         let col = colorramp.at(normalized);
         px.0.copy_from_slice(&col.to_rgba8()[0..3]);
     }

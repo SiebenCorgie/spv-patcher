@@ -4,7 +4,7 @@
 //!
 //! Writes down the result as a json file and possibly compares it to another json-result file for regression.
 #![deny(warnings)]
-//#![allow(unused)]
+#![allow(unused)]
 
 use bench::Benchmark;
 use marpii::context::Ctx;
@@ -20,8 +20,8 @@ pub const RUN_COUNT: usize = 10;
 
 fn run_bench(benchmark: &mut dyn Benchmark, reporter: &mut Reporter, rmg: &mut Rmg) {
     log::info!("Running benchmark: {}", benchmark.name());
-    //benchmark.bench_unmodified(rmg, reporter, RUN_COUNT);
-    //benchmark.bench_patched_compiled(rmg, reporter, RUN_COUNT);
+    benchmark.bench_unmodified(rmg, reporter, RUN_COUNT);
+    benchmark.bench_patched_compiled(rmg, reporter, RUN_COUNT);
     benchmark.bench_patched_runtime(rmg, reporter, RUN_COUNT);
 }
 
