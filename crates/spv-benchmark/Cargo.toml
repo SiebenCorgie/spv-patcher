@@ -22,3 +22,13 @@ marpii.workspace = true
 marpii-rmg.workspace = true
 marpii-rmg-shared.workspace = true
 marpii-rmg-tasks.workspace = true
+
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"]}
+
+
+[[bench]]
+name = "patching_benchmark"
+path = "benches/patching_benchmark.rs"
+harness = false
