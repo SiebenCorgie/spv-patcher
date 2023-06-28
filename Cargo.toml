@@ -9,11 +9,15 @@ members = [
 "crates/vulkan-patchable-pipeline",
 "crates/spv-tester/resources/no_inline_function",
 "crates/spv-tester/resources/rust_shader_builder",
+"crates/spv-benchmark/resources/benchmark_shader_builder",
+"crates/spv-benchmark/resources/bench_const_replace",
+"crates/spv-benchmark/resources/bench_const_replace_mandelbrot",
 ]
 
 
 [workspace.dependencies]
-rspirv = "0.11"
+#rspirv = "0.11.0+1.5.4"
+rspirv = {git = "https://github.com/gfx-rs/rspirv.git", rev = "ba1f984"}
 thiserror = "1.0"
 spirt = {git = "https://github.com/EmbarkStudios/spirt.git"}
 #spirt = {path = "../spirt"}
@@ -24,6 +28,9 @@ bytemuck = "1"
 serde = "1"
 serde_json = "1"
 smallvec = "1.10"
+image = "0.24"
+colorgrad = "0.6.2"
+
 #our vulkan runtime
 marpii = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg = {git = "https://gitlab.com/tendsinmende/marpii.git"}
@@ -36,3 +43,7 @@ spirv-builder = { git = "https://github.com/LykenSol/rust-gpu", rev = "d78df7e40
 #marpii-rmg = {path = "../../graphics/marpii/crates/marpii-rmg"}
 #marpii-rmg-shared = {path = "../../graphics/marpii/crates/marpii-rmg-shared"}
 #marpii-rmg-tasks = {path = "../../graphics/marpii/crates/marpii-rmg-tasks/marpii-rmg-tasks"}
+
+graplot = "0.1.22"
+
+

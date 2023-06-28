@@ -33,3 +33,33 @@ The tools `spirv-val` and `spirv-dis` must be accessible in `$PATH` for all test
 1. Download & Install Rust, usually via [Rustup](https://rustup.rs/).
 2. Build test shader (if you intend to use testing) by changing to `crates/spv-tester/resources` and executing `compile_shader.sh` in that directory.
 3. Compile everything via `cargo build --release`, or run a test with `cargo run --bin spv-tester -- const_mutate`
+
+
+## Testing
+
+To run all tests execute
+
+``` shell
+cargo run --bin spv-tester const_mutate non_uniform_patch const_replace dyn_replace function_finder
+```
+
+You might want to bless your results if you are sure they are correct by appending `bless` to the sequence.
+
+
+## Benchmarking
+
+There are two benchmarks. One is the GPU-Performance benchmark. Use 
+
+``` shell
+cargo run --bin spv-benchmark --release
+```
+
+to run GPU the benchmarks.
+
+For the CPU site we use [Criterion](https://github.com/bheisler/criterion.rs). This is one of the main Rust benchmarking frameworks. It integrates with our projects. Therefor running 
+
+``` shell
+cargo bench
+```
+
+is enough. The Results can be found at `target/criterion/report/index.html`

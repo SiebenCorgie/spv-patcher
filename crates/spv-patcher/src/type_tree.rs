@@ -9,8 +9,8 @@ use smallvec::SmallVec;
 
 #[derive(Hash, PartialEq, Eq, Debug)]
 pub enum TTypeOperand {
-    LiteralInt32(u32),
-    LiteralInt64(u64),
+    LiteralBit32(u32),
+    LiteralBit64(u64),
     LiteralString(String),
     IdRef(u32),
 }
@@ -19,8 +19,8 @@ impl From<Operand> for TTypeOperand {
     fn from(value: Operand) -> Self {
         match value {
             Operand::IdRef(r) => TTypeOperand::IdRef(r),
-            Operand::LiteralInt32(i) => TTypeOperand::LiteralInt32(i),
-            Operand::LiteralInt64(i) => TTypeOperand::LiteralInt64(i),
+            Operand::LiteralBit32(i) => TTypeOperand::LiteralBit32(i),
+            Operand::LiteralBit64(i) => TTypeOperand::LiteralBit64(i),
             Operand::LiteralString(s) => TTypeOperand::LiteralString(s),
             _ => panic!("Unparseabel operand {}", value),
         }
@@ -89,7 +89,7 @@ impl TypeTree {
                     }
                     Op::MemberDecorate => {
                         let id = inst.result_id.unwrap();
-                        let member = if let Operand::LiteralInt32(i) = inst.operands[1] {
+                        let member = if let Operand::LiteralBit32(i) = inst.operands[1] {
                             i
                         } else {
                             panic!("MemberDecorate operand[1] was not a literal int32");

@@ -6,3 +6,29 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+ahash = {workspace = true, features = ["serde"]}
+log.workspace = true
+simple_logger.workspace = true
+serde = {workspace = true, features = ["derive"]}
+serde_json.workspace = true
+spv-patcher = {path = "../spv-patcher"}
+vulkan-patchable-pipeline = {path = "../vulkan-patchable-pipeline"}
+patch-function = {path = "../patch-function"}
+image.workspace = true
+colorgrad.workspace = true
+graplot.workspace = true
+bytemuck.workspace = true
+marpii.workspace = true
+marpii-rmg.workspace = true
+marpii-rmg-shared.workspace = true
+marpii-rmg-tasks.workspace = true
+
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"]}
+
+
+[[bench]]
+name = "patching_benchmark"
+path = "benches/patching_benchmark.rs"
+harness = false

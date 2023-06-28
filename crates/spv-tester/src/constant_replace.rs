@@ -8,9 +8,9 @@ use patch_function::{
     },
     ConstantReplace,
 };
-use spv_patcher::PatcherError;
+use spv_patcher::{PatcherError, Validator};
 
-use crate::{compute_task::ComputeTask, test_runs::TestRun, validator::Validator};
+use crate::{compute_task::ComputeTask, test_runs::TestRun};
 
 #[repr(C, align(16))]
 struct ConstReplacePush {
@@ -79,6 +79,7 @@ impl ConstReplaceTest {
                 patch_function::rspirv::spirv::AddressingModel::Logical,
                 patch_function::rspirv::spirv::MemoryModel::Vulkan,
             );
+            builder.set_version(1, 5);
 
             let entry_point_id = builder.id();
             //decorate function as export
