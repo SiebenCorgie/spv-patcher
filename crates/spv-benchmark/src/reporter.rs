@@ -1,5 +1,15 @@
+use std::{fs::OpenOptions, path::Path};
+
 use ahash::AHashMap;
-use graplot::{Bar, BarDesc, BarDescArg};
+use plotters::{
+    data::fitting_range,
+    prelude::{
+        Boxplot, CandleStick, ChartBuilder, IntoDrawingArea, IntoSegmentedCoord, Quartiles,
+        SegmentValue, RED,
+    },
+    series::Histogram,
+    style::{Color, IntoFont, WHITE},
+};
 use serde::{Deserialize, Serialize};
 
 use crate::bench::Benchmark;
@@ -12,21 +22,6 @@ pub enum BenchRunType {
     CompileTime,
     PatchTime,
     Other(String),
-}
-
-impl BarDescArg for BenchRunType {
-    fn as_bar_desc(&self) -> Vec<BarDesc> {
-        vec![self.as_single_bar_desc()]
-    }
-    fn as_single_bar_desc(&self) -> BarDesc {
-        let s = if let BenchRunType::Other(s) = self {
-            s.clone()
-        } else {
-            format!("{:?}", self)
-        };
-
-        s.as_str().as_single_bar_desc()
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -86,10 +81,25 @@ impl Reporter {
         );
     }
 
+    pub fn save(&self) {
+        let s = serde_json::to_string(self).unwrap();
+        if Path::new("spv-benchmark-run.json").exists() {
+            std::fs::remove_file("spv-benchmark-run.json").unwrap();
+        }
+
+        std::fs::write("spv-benchmark-run.json", s);
+    }
+
     ///Renders the currently known benchmark results.
     pub fn show(&self) {
-        ///Currently rendering one graph per benchmark
         for (bench_name, results) in &self.benches {
+            let name = format!("{bench_name}.svg");
+            let root = plotters::backend::SVGBackend::new(&name, (1024, 1024)).into_drawing_area();
+            root.fill(&WHITE).unwrap();
+
+            ///Currently rendering one graph per benchmark
+            let mut data_map: AHashMap<String, _> = AHashMap::default();
+
             let mut bins: AHashMap<BenchRunType, Vec<f64>> = AHashMap::with_capacity(3);
             for run in results {
                 if let Some(bin) = bins.get_mut(&run.ty) {
@@ -99,19 +109,71 @@ impl Reporter {
                 }
             }
 
-            let names = bins
-                .keys()
-                .map(|k| k.as_single_bar_desc())
-                .collect::<Vec<_>>();
-            let results = bins
-                .values()
-                .map(|bin_res| bin_res.iter().fold(0.0f64, |max, v| max.max(*v)))
+            for (bin_ty, mut results) in bins {
+                for res in &mut results {
+                    *res = *res / 1_000_000.0;
+                }
+                /*
+                                let (min, max) = results
+                                    .iter()
+                                    .fold((f64::INFINITY, f64::NEG_INFINITY), |(min, max), v| {
+                                        (min.min(*v), max.max(*v))
+                                    });
+                */
+                data_map.insert(format!("{:?}", bin_ty), results);
+            }
+
+            let (data_min, data_max) = data_map.iter().fold(
+                (f32::INFINITY, f32::NEG_INFINITY),
+                |(min, max), (_name, results)| {
+                    let (lmin, lmax) = results
+                        .iter()
+                        .fold((f32::INFINITY, f32::NEG_INFINITY), |(lmin, lmax), v| {
+                            (lmin.min(*v as f32), lmax.max(*v as f32))
+                        });
+                    (min.min(lmin), max.max(lmax))
+                },
+            );
+
+            let chart_label = data_map
+                .iter()
+                .map(|(name, _)| name.clone())
                 .collect::<Vec<_>>();
 
-            let mut bar = Bar::new(names.as_slice(), &results);
-            bar.set_title(&bench_name);
-            bar.set_xlabel("patch type");
-            bar.show();
+            let value_range = fitting_range(data_map.iter().map(|(_name, dta)| dta).flatten());
+
+            let mut chart = ChartBuilder::on(&root)
+                .x_label_area_size(40)
+                .y_label_area_size(40)
+                .caption(&name, ("sans-serif", 20))
+                .build_cartesian_2d(
+                    chart_label.into_segmented(),
+                    value_range.start as f32..value_range.end as f32,
+                )
+                .unwrap();
+
+            chart
+                .configure_mesh()
+                .disable_x_mesh()
+                .bold_line_style(&WHITE.mix(0.3))
+                .y_desc("Time in ms")
+                .x_desc("Patch type")
+                .axis_desc_style(("sans-serif", 15))
+                .draw()
+                .unwrap();
+
+            let plots: Vec<Boxplot<_, _>> = data_map
+                .iter()
+                .enumerate()
+                .map(|(idx, (name, d))| {
+                    Boxplot::new_vertical(SegmentValue::CenterOf(name), &Quartiles::new(d))
+                })
+                .collect::<Vec<_>>();
+
+            chart.draw_series(plots).unwrap();
+
+            // To avoid the IO failure being ignored silently, we manually call the present function
+            root.present().expect("Unable to write result to file, please make sure 'plotters-doc-data' dir exists under current dir");
         }
     }
 }

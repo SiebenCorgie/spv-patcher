@@ -16,13 +16,18 @@ mod bench_task;
 mod buffer_to_image;
 mod reporter;
 
-pub const RUN_COUNT: usize = 10;
+pub const RUN_COUNT: usize = 10_000;
 
-fn run_bench(benchmark: &mut dyn Benchmark, reporter: &mut Reporter, rmg: &mut Rmg) {
+fn run_bench(
+    benchmark: &mut dyn Benchmark,
+    reporter: &mut Reporter,
+    rmg: &mut Rmg,
+    run_count: usize,
+) {
     log::info!("Running benchmark: {}", benchmark.name());
-    benchmark.bench_unmodified(rmg, reporter, RUN_COUNT);
-    benchmark.bench_patched_compiled(rmg, reporter, RUN_COUNT);
-    benchmark.bench_patched_runtime(rmg, reporter, RUN_COUNT);
+    benchmark.bench_unmodified(rmg, reporter, run_count);
+    benchmark.bench_patched_compiled(rmg, reporter, run_count);
+    benchmark.bench_patched_runtime(rmg, reporter, run_count);
 }
 
 fn main() {
@@ -53,14 +58,15 @@ fn main() {
     //DynReplace benchmark
     let mut dyn_bench = bench::dyn_replace::DynReplaceBench::load(&mut rmg).unwrap();
     //dyn_bench.safe_last_as_image = true;
-    run_bench(&mut dyn_bench, &mut reporter, &mut rmg);
+    run_bench(&mut dyn_bench, &mut reporter, &mut rmg, RUN_COUNT);
 
     let mut const_bench = bench::const_replace::ConstReplaceBench::load(&mut rmg).unwrap();
     //const_bench.safe_last_as_image = true;
-    run_bench(&mut const_bench, &mut reporter, &mut rmg);
+    run_bench(&mut const_bench, &mut reporter, &mut rmg, RUN_COUNT);
 
     rmg.wait_for_idle();
     std::thread::sleep(std::time::Duration::from_secs(1));
 
+    //reporter.save();
     reporter.show();
 }
