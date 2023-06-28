@@ -16,7 +16,7 @@ mod bench_task;
 mod buffer_to_image;
 mod reporter;
 
-pub const RUN_COUNT: usize = 100;
+pub const RUN_COUNT: usize = 10_000;
 
 fn run_bench(
     benchmark: &mut dyn Benchmark,
@@ -67,6 +67,6 @@ fn main() {
     rmg.wait_for_idle();
     std::thread::sleep(std::time::Duration::from_secs(1));
 
-    reporter.save();
+    //reporter.save();
     reporter.show();
 }

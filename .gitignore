@@ -10,3 +10,4 @@ Cargo.lock
 *.json
 *.bib.sav
 *.json
+*.svg
