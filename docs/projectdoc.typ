@@ -32,7 +32,7 @@ The project tries to extend the concept of specialization constants to specializ
   #abstract
 ]
 
-
+#show link: underline
 
 /* #show: rest => columns(2, rest) */
 
@@ -165,16 +165,6 @@ Todo:
 - Check time needed for the patch
 
 
-== Shader interface transformation
-=== Input / Output matching
-==== Problem description
-==== Reference and implementation
-=== Binding specification
-==== Problem description
-==== Binding description Vulkan
-==== Binding description OpenCL
-==== Implementation
-
 == Function injection
 === Handling functions in shader code
 
@@ -186,35 +176,69 @@ We therefore have a problem when it comes to identifying a certain callsite in S
 
 The solution is to come up with two versions of the function-patching mechanism.
 
-1. Linking-like replacement of function
+1. Linking-like replacement of non-inlined functions
 2. Injecting custom function call as variable assignment
 
-=== Linking or replacing
+=== Linking and replacing
 
-This patch is the simplest methode. We enumerate all found functions in a module and let the _patcher_ decide which function's body is replaced.
-The patch only needs to match the function's signature and return type.
+Both following passes rely on a common function-identification. We allow two types. Identification by type-signature, and identification by debug-name-string. The latter is similar to the way a linker might use a identification string for dynamic linking of two functions. The functionality can be found in `crates/patch-function/src/function_finder.rs`
 
-==== Implementation
+For injection we have to distinguish two versions:
 
-- known function enumeration
-- argument id matching to new code
+1. Merging known code into an known template. This is similar to standart linking. We'll call this _Constant Replacement_
+2. Loading a template, and, (possibly based on its content) injecting new code. We'll call this _Dynamic Replacement_
 
-=== Injection
+==== Constant Replacement
 
-When injecting we insert the custom function into the module. The _patcher_ can then select a variable (or multiple) in the _main controll flow_ with a type that matches the function's return type. The correct variable might be identifyable by debug information like a variable name string.
-The patch then injects custom code that executes the inserted function and writes the result to the selected variable.
+_The described code can be found in `crates/patch-function/src/constant_replace.rs` _
 
-TODO: discuss custom instruction extension if we would have controll over the template's compiler
+Since constant replacement is similar to linking, we use the `spirv-link` program provided by Khronos for the most part. Since our patcher can not rely on the correct linking annotations in the template code, as well as the _to be injected_ code, we start by modifying both with the correct linking annotations.
 
-==== Implementation
+Afterwards we assemble both into byte-code and let the linker work. The resulting module is read back into the patcher.
 
-- variable enumeration based on return type
-- DCE pass to remove unneeded code for mutated variable
+
+Right now this relies on three files being written (both input files and the output file), which leads to subpar performance compared to the in-memory patches.
+
+==== Dynamic Replacement
+
+After identifying our _to be replaced_ function, we copy the function's definition and start a new basic-block. At this point we hand over control flow to a user specified function (or _closure_ in Rust terms), that is free to append any custom code. The function is supplied with knowledge about the provided parameters, as well as the expected return type.
+
+In a last pass all call sites of the former function are replaced with a call to the new function. Since all parameters, return IDs etc. do match by definition, this is safe to do.
+
+
+There are two advantages to the _Constant Replacement_ approach. The first is our runtime knowledge over the whole SPIR-V-Module. We don't need to merge different modules (meaning type-ids, capabilities, extensions etc.), instead we can naturally use and extend the template module.
+
+The second advantage is the in-memory nature of the patch. The template is already loaded and can be mutated largely in-place. In theory this is also possible for the _Constant Replacement_ patch, but for that we'd have to re-implement the `spirv-link` application.
+
+=== Callsite injection
+
+Sadly I didn't have time to implement the call-site injection methode. While the injection itself wouldn't be too difficult, identifying _where_ to place the call-site is more complex. We can't rely on any signature matching, since any assigned variable type can potentially be used multiple times. The only relyable way I found is, by relying on debug information (specifically the `OpLine` instruction of SPIR-V) to identify the correct source-code line, and then searching for the correct assignment operation.
+
 
 = Testing
 
 #lorem(40)
 = Benchmarking
+
+Therea are two _domains_ we can test. One is the CPU side, where we mostly measure how long any of the patches takes. The other side is GPU-runtime of the resulting code after patching.
+The `spv-benchmark` application reflects that. When running the app, only the GPU-side benchmarks are executed. For the CPU-side we use #link("https://github.com/bheisler/criterion.rs")[Criterion.rs]. In can be invoked via `cargo bench`, which will run the benchmark and generate a HTML report at `target/criterion/report/index.html`.
+
+All patching benchmarks take a _simple_ code template that calculates distance of a pixel to an images center, and replace that with a simple #link("https://en.wikipedia.org/wiki/Mandelbrot_set")[mandelbrot set] calculation.
+
+
+== CPU
+
+=== Constant Replace
+
+
+
+=== Dynamic Replace
+
+== GPU
+
+=== Constant Replace
+
+=== Dynamic Replace
 
 = Conclusion
 
