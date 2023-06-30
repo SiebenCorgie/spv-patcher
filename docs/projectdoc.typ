@@ -201,6 +201,9 @@ Right now this relies on three files being written (both input files and the out
 
 ==== Dynamic Replacement
 
+
+_The described code can be found in `crates/patch-function/src/dynamic_replace.rs` _
+
 After identifying our _to be replaced_ function, we copy the function's definition and start a new basic-block. At this point we hand over control flow to a user specified function (or _closure_ in Rust terms), that is free to append any custom code. The function is supplied with knowledge about the provided parameters, as well as the expected return type.
 
 In a last pass all call sites of the former function are replaced with a call to the new function. Since all parameters, return IDs etc. do match by definition, this is safe to do.
@@ -223,23 +226,126 @@ Sadly I didn't have time to implement the call-site injection methode. While the
 Therea are two _domains_ we can test. One is the CPU side, where we mostly measure how long any of the patches takes. The other side is GPU-runtime of the resulting code after patching.
 The `spv-benchmark` application reflects that. When running the app, only the GPU-side benchmarks are executed. For the CPU-side we use #link("https://github.com/bheisler/criterion.rs")[Criterion.rs]. In can be invoked via `cargo bench`, which will run the benchmark and generate a HTML report at `target/criterion/report/index.html`.
 
-All patching benchmarks take a _simple_ code template that calculates distance of a pixel to an images center, and replace that with a simple #link("https://en.wikipedia.org/wiki/Mandelbrot_set")[mandelbrot set] calculation.
+All patching benchmarks take a _simple_ code template that calculates distance of a pixel to an image's center, and replace that with a simple #link("https://en.wikipedia.org/wiki/Mandelbrot_set")[mandelbrot set] calculation.
 
+
+== Hardware note
+
+All numbers measured in the following benchmark are taken on a AMD Ryzen 5900X (12 core/24 threads \@ 3.7GHz up to 4.8GHz). The GPU is a AMD 6800XT, the GPU benchmark uses Vulkan and the latest open-source Mesa/RADV driver.
 
 == CPU
 
+=== GLSL Compilation time
+
+For reference to _patching_ we also measure a full compilation of the mandelbrot-set shader via `glslangValidator`. The shader that is compiled can be found in `crates/spv-benchmark/resources/mandelbrot.comp`.
+
+
+
+#figure(
+  image("glslcompiletime.png", width: 90%),
+  caption: [
+      GlslangValidator compile time for the Mandelbrot compute shader.
+  ],
+) <glslct>
+
+The mean compiletime is 64.4ms with a standard deviation of 2ms. Therefore, for the patcher to make sense compile-time wise, we need to be faster than ~64ms. Otherwise a standard recompilation would make more sense than patching.
+
+
 === Constant Replace
 
+Using the _Constant Replace_ patch we measure two timinings. One is only the time the patch needs, the other one is _timing including the assembling into the SPIR-V bytecode_. This allows us to distinguish between the time introduced just by patching, and the actual time needed at runtime to get the final shader code out of the system.
 
+#let const_non_assemble = figure(
+  image("const_link.png", width: 90%),
+  caption: [
+      Constant patching without assembling.
+  ],
+);
+
+#let const_assemble = figure(
+  image("const_link_assemble.png", width: 90%),
+  caption: [
+      Constant patching including assembling into shader bytecode.
+  ],
+);
+
+#stack(
+    grid(columns: 2, const_non_assemble, const_assemble)
+)
+
+The measured timings show, that the assembling time does not play a notable role in the overall runtime. However, the mere linking is faster compared to the full recompilation with a mean timing of ~12.8ms.
 
 === Dynamic Replace
+
+For constant replacement we measure the same times, once _only patching_ and once including the assembly into a usable SPIR-V bytecode module.
+
+
+
+#let dyn_non_assemble = figure(
+  image("dyn_replace.png", width: 90%),
+  caption: [
+      Dynamic replacement only
+  ],
+);
+
+#let dyn_assemble = figure(
+  image("dyn_replace_assemble.png", width: 90%),
+  caption: [
+      Dynamic replacement including assembling into shader bytecode.
+  ],
+);
+
+#stack(
+    grid(columns: 2, dyn_non_assemble, dyn_assemble)
+)
+
+The overall timing of the replacement patch is much shorter with a mean timing of ~20μs for a usable SPIR-V bytecode module. The assembly step takes around 4-5μs. The reason for that rather fast assembly time lies in the implementation of the `rspirv` library which keeps the data representation in a easily assembled way in memory. Since the patch is appled directly on that _data representation_ no lifting or lowering pass is needed. The patching comes down to simple memory operations that append the new byte-instructions to the shader module, or mutate existing ones (specifically when rewriting the function call-site).
 
 == GPU
 
+The GPU benchmark compares the timing of both, dynamic and constant replacment of the _simple_ shader to the compiled _mandelbrot_ shader, to the patched _mandebrot_ shader. For compilation we use Rust-Gpu, since we have to base our shader template on code generated by that compiler. GLSL inlines the mandebrot calculation with no way of preventing it, which makes the resulting template code unsable for our patching methodes that currently rely on un-inlined functions.
+
+
 === Constant Replace
+
+For constant replacement we have the following runtimes:
+
+#table(
+  columns: (auto, auto, auto, auto),
+  inset: 10pt,
+  align: horizon,
+  [Name], [avg], [min], [max],
+  [Unmodified], [0.05ms], [0.02ms], [0.07ms],
+  [Rust-GPU compiled], [2.31ms], [2.3ms], [2.35ms],
+  [ConstantPatched], [1.55ms], [1.50ms], [1.58ms],
+)
+
+As expected the runtimes are pretty uniform on a per-test basis. The difference in the compiled and patched runtime can be explained with the actual resulting code. Rust-GPU seems to loose some knowledge about possible special instructions available to SPIR-V/GPU architectures. For instance a call to `OpLength` (which calculate the length of an n-dimensional vector) is broken down into individual square operations and a following square-root of the sums of all components. The handwritten code however retains that knowledge, which in turn, is responsible for considerable shorter runtimes.
 
 === Dynamic Replace
 
+
+#table(
+  columns: (auto, auto, auto, auto),
+  inset: 10pt,
+  align: horizon,
+  [Name], [avg], [min], [max],
+  [Unmodified], [0.05ms], [0.02ms], [0.07ms],
+  [Rust-GPU compiled], [2.0ms], [2.05ms], [2.2ms],
+  [ConstantPatched], [1.55ms], [1.50ms], [1.58ms],
+)
+
+For dynamic patching the runtime does not differ that much to constant replacement. This is to be expected, since ideally the code shouldn't differ at all. Combined with the CPU side testing we show, that it is possible to replace performant GPU code in a timely manor via runtime patching. The actual patching in this specific case has a negelectable overhead of 15μm-20μs without any runtime penalty compared to fully compiled code. The latter part however depends on the system that supplies the patched code.
+
 = Conclusion
+
+We showed that it is feasible to replace SPIR-V byte code at runtime before supplying it to the graphics driver API. Appending new code to a known module (called _DynamicReplace_ in this documentation) provides a opportunity for such operations. The reason for that is the rather good abstraction layer that SPIR-V provides in that case. Its not too low (still high-level SSA code), but also low enough that no costly graph operations are necessary to facilitate the replacement.
+
+The linking like replacement (called _ConstantReplace_ in this documentation) is currently not as performant. While reasonable fast, it could probably be implemented faster if kept in memory like the dynamic alternative.
+The main obstacle here is, that both modules need to be combined into a single SPIR-V context. This means that we have to analyse common data-types, header compatibility etc. before we can effectively merge both modules. A possible solution would be to lift both modules into a common, more easily mergeable IR. Alternatively one could try to replay the _to be merged_ module's instruction in the context of the template module using the already existing _DynamicReplace_ patch.
+
+
+Finally we showed that the SPIR-V level IR is also suitable of post-compiler fix-passes. An implemented scenario patches the module to fullfill the `non-uniform` decoration requirement that is often overlooked in practice by programmers. While it can be argued that this is a shortcoming of the source programming language, this kind of patch can be helpful in realworld toolchains.
+
 
 #bibliography("works.bib")
