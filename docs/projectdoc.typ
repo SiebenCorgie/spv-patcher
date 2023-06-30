@@ -41,7 +41,7 @@ The project tries to extend the concept of specialization constants to specializ
 = Motivation
 
 
-Vulkan as well as OpenCL, the two modern, open graphics and GPGPU APIs, can be programmed on the GPU using the SPIR-V format. SPIR-V acts as IR between the (high level) programming language (e.g. GLSL, SysCL, OpenCL C / C++) and the graphics driver @spir-overview. The SPIR-V programs must be completely defined before they are passed to the graphics driver. That is, no driver-side linking of program parts can be assumed.
+Vulkan as well as OpenCL, two modern, open graphics and GPGPU APIs, can be programmed on the GPU using the SPIR-V format. SPIR-V acts as IR between the (high level) programming language (e.g. GLSL, SysCL, OpenCL C / C++) and the graphics driver @spir-overview. The SPIR-V programs must be completely defined before they are passed to the graphics driver. That is, no driver-side linking of program parts can be assumed.
 
 SPIR-V's standard includes linking capabilities, but these are not implemented in the high-level graphics frontends (both GLSL and HLSL) @offlinelinking. Furthermore, the planned system could not only link functions, but change whole parts of the program.
 
@@ -76,7 +76,7 @@ Internally at least Linux's MESA driver uses another custom IR, called NIR @nir,
 Another interesting opensource shader-compiler is the _AMD compiler_ (ACO) within mesa as well @aco. It is a backend to the former mentioned NIR specifically for AMD-Hardware.
 
 
-Conceputally we can split shader related IRs based on their position relation to SPIR-V. On one hand we have compilation focused IRs like LLVM, MLIR or, the more shader oriented IRs like SPIR-T. On the other hand we have runtime GPU-Code generation focused IRs like NIR.
+Conceptually we can split Shader related IRs based on their position in relation to SPIR-V. On one hand we have compilation focused IRs like LLVM, MLIR or, the more shader oriented IRs like SPIR-T. On the other hand we have runtime GPU-Code generation focused IRs like NIR.
 
 /*
 - SPIR-V is communication format, not necessarly compiler intern (source, this one blog post)
@@ -89,10 +89,15 @@ Conceputally we can split shader related IRs based on their position relation to
 
 == Compiler related IRs
 
-On the compiler site we have roughly two aproaches to translating a highlevel language to SPIR-V.
-First we have common LLVM based compiler stacks like SYSCL's. Secondly we have more monolitic aproaches like GLSL's and HLSL's stack. An observation is, that GPGPU related languages seem to favor the LLVM (or MLIR) stacks, while graphics related languages favor a custom monolitic stack.
+On the compiler site we have roughly two approaches to translating a highlevel language to SPIR-V.
+First we have common LLVM based compiler stacks like SYSCL's. Secondly we have more monolithic approaches like GLSL's and HLSL's stack. An observation is, that GPGPU related languages seem to favour the LLVM (or MLIR) stacks, while graphics related languages favour a custom monolithic stack.
 
-While I couldn't make out a single common reason for this, two main factors play a roll. The first one being controll over the compiler stack, including (simple) distribution and design decissions (See #notes.note[_In defense of NIR_][https://www.gfxstrand.net/faith/blog/2022/01/in-defense-of-nir/] for better explaination). The second being simplicity. Graphics shader are often focused on a certain kind of work (like fragement shading, vertex tranformation etc.). Therfore, more informed tranformations can be implemented directly, compared to general-purpose GPU programs.
+While I couldn't make out a single common reason for this, two main factors play a roll. The first one being controll over the compiler stack, including (simple) distribution and design decisions (See #notes.note[_In defense of NIR_][https://www.gfxstrand.net/faith/blog/2022/01/in-defense-of-nir/] for better explanation). The second being simplicity. Graphics shader are often focused on a certain kind of work (like fragment shading, vertex transformation etc.). Therefore, more informed transformation's can be implemented directly, compared to general-purpose GPU programs.
+
+Another reason for which I couldn't find a citeable source is the history of Shader compilers. Only the latest graphics and GPGPU APIs target some kind of byte-format as input. APIs before that where either semi-non-programmable (DirectX up to version 8, and OpenGL until version 2.0), or took actual programme code as input(DirectX until version 12 which introduces DXIL, OpenGL until version 4.6 which introduces SPIR-V capabilities similar to Vulkan). The compiler would therefore recite within the driver stack. This has two implications.
+
+1. The compiler must be shipped with the driver
+2. The compiler must be fast enough to compile the code to executable GPU-Code at runtime.
 
 /*
 - IREE: ML related IR _above_ SPIR-V
@@ -102,15 +107,16 @@ While I couldn't make out a single common reason for this, two main factors play
 */
 == Shader related IRs
 
-- MLIR Dialects (focus on machine learning tho)
-- NIR (mesa)
-- SPIRT (rustgpu)
-- Not sure what glslang and HLSL do internally
+
+For Shader focused IRs we have specialised IRs for programming languages like MLIR dialects (IREE or the SPIR-V dialect) as well as custom solutions like SPIR-T which is used internally in Rust-Gpu. They focus mostly on specialising code for GPU usage. Interestingly we can see that OpenSource driver stack have their own internal IRs that compile SPIR-V (or some other communication IR format) down to the actual ISA instructions. Two notable toolchains are Mesa's NIR, and a special Shader compiler for AMD's ISA called ACO (#notes.note[_AMD Compiler_][https://gitlab.freedesktop.org/mesa/mesa/-/blob/main/src/amd/compiler/README.md])
 
 
 == Decision
 
-$=>$ Operate on SPIR-V directly for most, use SPIR-T to lower to RVSDG for flow-analyzis if needed
+
+I decide to use SPIR-V directly for the most part. If I need to do more complex Shader code transformation's I'll try to use SPIR-T, which is not that different to Mesa's NIR. The lifting and lowering are proven to be fast (I spoke to the main developer _eddyb_).
+
+I decided against lifting to MLIR because the patching mechanism is in its nature a rather technical procedure. I anticipate that I wouldn't gain the right type of flexibility I'd need. This only means the _patching_ part though. MLIR would probably be the right choice if I want to compile some DSL down to SPIR-V, which then gets patched into a template SPIR-V program.
 
 
 = Patches
@@ -140,11 +146,9 @@ The first observation is, that only descriptor indexing related instructions nee
 
 A second observation is, that _per-invocation non-uniform indexing_ has a finite count of sources. One is non-uniform control flow, the other is non-uniform input variables. The latter is found by tracing the index calculation for known non-uniform input variables like `invocation-index` or `vertex-index` etc.
 
-//TODO: checkout if SPIR-T can help here.
 
 Finding non-uniform control-flow is not as easy though. The ACO compiler actually does most of its work in that are. Therefore, we reverse the problem and decorate _every_ descriptor_indexing as _NonUniform_ by default, and just remove the decoration, if we are absolutely sure that it isn't needed.
 
-TODO: Benchmark the result for performance regression.
 
 === Implementation
 
@@ -156,13 +160,7 @@ The implementation has four stages:
 4. fix module extensions and capabilities by adding `SPV_EXT_descriptor_indexing` and all non-uniform capabilities (`fix_capabilities_and_extensions`)
 
 In practice some of the added capabilities might not be needed. However, they do not influence the resulting ISA-code, since capabilities only signal the possibility of non-uniform access.
-The pass might decorate _too many_ access as `NonUniform`. The performance implication must be tested in the benchmark.
-
-=== Performance comparison
-
-Todo:
-- Compare pass-decorated vs hand-decorated for runtime performance
-- Check time needed for the patch
+The pass might decorate _too many_ access as `NonUniform`.
 
 
 == Function injection
