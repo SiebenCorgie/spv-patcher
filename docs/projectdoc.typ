@@ -23,7 +23,7 @@
 #let abstract = "
 Vulkan, SysCL as well as OpenCL, can be programmed on the GPU using the SPIR-V format. SPIR-V acts as IR between the (high level) programming language (e.g. GLSL, SysCL, OpenCL C / C++) and the graphics driver. The SPIR-V programs must be completely defined before they are passed to the graphics driver. That is, no driver-side linking of program parts can be assumed.
 
-The project tries to extend the concept of specialization constants to specialization code. This allows shader code to be runtime tranformed by user generated content, or procedurally generated content.
+The project tries to extend the concept of specialization constants to specialization code. This allows shader code to be runtime transformed by user generated content, or procedurally generated content.
 "
 
 #align(center)[
@@ -79,7 +79,7 @@ Another interesting opensource shader-compiler is the _AMD compiler_ (ACO) withi
 Conceptually we can split Shader related IRs based on their position in relation to SPIR-V. On one hand we have compilation focused IRs like LLVM, MLIR or, the more shader oriented IRs like SPIR-T. On the other hand we have runtime GPU-Code generation focused IRs like NIR.
 
 /*
-- SPIR-V is communication format, not necessarly compiler intern (source, this one blog post)
+- SPIR-V is communication format, not necessarily compiler intern (source, this one blog post)
 - Compiler side likes LLVM and MLIR
 - For some reason drivers and languages (GLSLang, HLSL-frontend to SPIR-V, Rust-GPU don't like)
     - Probably because runtime / distribution
@@ -108,7 +108,7 @@ Another reason for which I couldn't find a citeable source is the history of Sha
 == Shader related IRs
 
 
-For Shader focused IRs we have specialised IRs for programming languages like MLIR dialects (IREE or the SPIR-V dialect) as well as custom solutions like SPIR-T which is used internally in Rust-Gpu. They focus mostly on specialising code for GPU usage. Interestingly we can see that OpenSource driver stack have their own internal IRs that compile SPIR-V (or some other communication IR format) down to the actual ISA instructions. Two notable toolchains are Mesa's NIR, and a special Shader compiler for AMD's ISA called ACO (#notes.note[_AMD Compiler_][https://gitlab.freedesktop.org/mesa/mesa/-/blob/main/src/amd/compiler/README.md])
+For Shader focused IRs we have specialised IRs for programming languages like MLIR dialects (IREE or the SPIR-V dialect) as well as custom solutions like SPIR-T which is used internally in Rust-Gpu. They focus mostly on specialising code for GPU usage. Interestingly we can see that OpenSource driver stack have their own internal IRs that compile SPIR-V (or some other communication IR format) down to the actual ISA instructions. Two notable toolchains are Mesa's NIR, and a special Shader compiler for AMD's ISA called ACO (#notes.note[_AMD_Compiler_][https://gitlab.freedesktop.org/mesa/mesa/-/blob/main/src/amd/compiler/README.md])
 
 
 == Decision
@@ -137,6 +137,7 @@ vec4 color = texture(tex[nonuniformEXT(i)], ...);
 ```
 
 This effectively marks the index `i` as _possibly different per invocation group_. However in practice this has several problems:
+
 + When this is needed is not always easy to see
 + When forgotten, bugs are subtil
 + Some drivers seem to handle it well if forgotten.
@@ -147,7 +148,7 @@ The first observation is, that only descriptor indexing related instructions nee
 A second observation is, that _per-invocation non-uniform indexing_ has a finite count of sources. One is non-uniform control flow, the other is non-uniform input variables. The latter is found by tracing the index calculation for known non-uniform input variables like `invocation-index` or `vertex-index` etc.
 
 
-Finding non-uniform control-flow is not as easy though. The ACO compiler actually does most of its work in that are. Therefore, we reverse the problem and decorate _every_ descriptor_indexing as _NonUniform_ by default, and just remove the decoration, if we are absolutely sure that it isn't needed.
+Finding non-uniform control-flow is not as easy. The ACO compiler actually does most of its work in that are. Therefore, we reverse the problem and decorate _every_ descriptor_indexing as _NonUniform_ by default, and just remove the decoration, if we are absolutely sure that it isn't needed.
 
 
 === Implementation
@@ -218,13 +219,22 @@ Sadly I didn't have time to implement the call-site injection methode. While the
 
 = Testing
 
-#lorem(40)
+== Code-Validation
+
+Before running the generated code, we can validate it against the SPIR-V specification. For that a CLI programme is provided by Khronos called `spirv-val`. It simply takes a shader module on stdin (or as a file) and outputs an error if any invalid code was found. In theory any module passing that check should be valid SPIR-V code and therefore be executable. In practice `spirv-val` does not catch all errors, which is the reason for enabling Vulkan's runtime validation as well.
+
+== Runtime Validation
+
+The second validation happens at runtime. We have two ways of checking the validity of the shader module. One is Vulkan's validation layers. They are mainly used to check that a Vulkan application conforms to the Vulkan specification. However, it also detects runtime invalid shader execution, or malformed code. We check that by turning on the validation layer and routing error output into our test.
+
+Secondly, we check that the test returns the expected output. For that, we download the test run's result and check it against our _blessed_ results. Those _blessed_ results are a list of prior saved results from which we know that they are correct. This lets us ultimately find regression for code that is _valid_ in itself, but produces an incorrect (or unexpected) output.
+
 = Benchmarking
 
-Therea are two _domains_ we can test. One is the CPU side, where we mostly measure how long any of the patches takes. The other side is GPU-runtime of the resulting code after patching.
+There are two _domains_ we can test. One is the CPU side, where we mostly measure how long any of the patches takes. The other side is GPU-runtime of the resulting code after patching.
 The `spv-benchmark` application reflects that. When running the app, only the GPU-side benchmarks are executed. For the CPU-side we use #link("https://github.com/bheisler/criterion.rs")[Criterion.rs]. In can be invoked via `cargo bench`, which will run the benchmark and generate a HTML report at `target/criterion/report/index.html`.
 
-All patching benchmarks take a _simple_ code template that calculates distance of a pixel to an image's center, and replace that with a simple #link("https://en.wikipedia.org/wiki/Mandelbrot_set")[mandelbrot set] calculation.
+All patching benchmarks take a _simple_ code template that calculates the distance of a pixel to an image's center, and replace that with a simple #link("https://en.wikipedia.org/wiki/Mandelbrot_set")[mandelbrot set] calculation.
 
 
 == Hardware note
@@ -297,41 +307,66 @@ For constant replacement we measure the same times, once _only patching_ and onc
     grid(columns: 2, dyn_non_assemble, dyn_assemble)
 )
 
-The overall timing of the replacement patch is much shorter with a mean timing of ~20μs for a usable SPIR-V bytecode module. The assembly step takes around 4-5μs. The reason for that rather fast assembly time lies in the implementation of the `rspirv` library which keeps the data representation in a easily assembled way in memory. Since the patch is appled directly on that _data representation_ no lifting or lowering pass is needed. The patching comes down to simple memory operations that append the new byte-instructions to the shader module, or mutate existing ones (specifically when rewriting the function call-site).
+The overall timing of the replacement patch is much shorter with a mean timing of ~20μs for a usable SPIR-V bytecode module. The assembly step takes around 4-5μs. The reason for that rather fast assembly time lies in the implementation of the `rspirv` library which keeps the data representation in a easily assembled way in memory. Since the patch is applied directly on that _data representation_, no lifting or lowering pass is needed. The patching comes down to simple memory operations that append the new byte-instructions to the shader module, or mutate existing ones (specifically when rewriting the function call-site).
 
 == GPU
 
-The GPU benchmark compares the timing of both, dynamic and constant replacment of the _simple_ shader to the compiled _mandelbrot_ shader, to the patched _mandebrot_ shader. For compilation we use Rust-Gpu, since we have to base our shader template on code generated by that compiler. GLSL inlines the mandebrot calculation with no way of preventing it, which makes the resulting template code unsable for our patching methodes that currently rely on un-inlined functions.
+The GPU benchmark compares the timing of both, dynamic and constant replacement of the _simple_ shader to the compiled _mandelbrot_ shader, to the patched _mandebrot_ shader. For compilation, we use Rust-Gpu, since we have to base our shader template on code generated by that compiler. GLSL inlines the mandebrot calculation with no way of preventing it, which makes the resulting template code unsable for our patching methods that currently rely on un-inlined functions.
 
 
 === Constant Replace
 
 For constant replacement we have the following runtimes:
 
-#table(
+#let cr_dedicated = table(
   columns: (auto, auto, auto, auto),
-  inset: 10pt,
+  inset: 7pt,
   align: horizon,
   [Name], [avg], [min], [max],
   [Unmodified], [0.05ms], [0.02ms], [0.07ms],
   [Rust-GPU compiled], [2.31ms], [2.3ms], [2.35ms],
-  [ConstantPatched], [1.55ms], [1.50ms], [1.58ms],
-)
+  [Patched Runtime], [1.55ms], [1.50ms], [1.58ms],
+);
 
-As expected the runtimes are pretty uniform on a per-test basis. The difference in the compiled and patched runtime can be explained with the actual resulting code. Rust-GPU seems to loose some knowledge about possible special instructions available to SPIR-V/GPU architectures. For instance a call to `OpLength` (which calculate the length of an n-dimensional vector) is broken down into individual square operations and a following square-root of the sums of all components. The handwritten code however retains that knowledge, which in turn, is responsible for considerable shorter runtimes.
+#let cr_mobile = table(
+  columns: (auto, auto, auto),
+  inset: 7pt,
+  align: horizon,
+  [avg], [min], [max],
+  [0.35ms], [0.37ms], [0.4ms],
+  [11.41ms], [11.41ms], [11.42ms],
+  [13.6ms], [13.65ms], [13.7ms],
+);
+
+#stack(grid(gutter: 3pt, rows: 2, columns: 2, "Dedicated Graphics", "Integrated Graphics", cr_dedicated, cr_mobile))
+
+As expected, the runtimes are pretty uniform on a per-test basis. The difference in the compiled and patched runtime can be explained with the actual resulting code. Rust-GPU seems to lose some knowledge about possible special instructions available to SPIR-V/GPU architectures. For instance, a call to `OpLength` (which calculate the length of an n-dimensional vector) is broken down into individual square operations and a following square-root of the sums of all components. The handwritten code however retains that knowledge, which in turn, is responsible for considerable shorter runtimes on the dedicated hardware. Interestingly the integrated Ryzen chip's graphics card does not profit from that.
 
 === Dynamic Replace
 
 
-#table(
-  columns: (auto, auto, auto, auto),
-  inset: 10pt,
+#let dy_dedicated = table(
+    columns: (auto, auto, auto, auto),
+  inset: 7pt,
   align: horizon,
   [Name], [avg], [min], [max],
   [Unmodified], [0.05ms], [0.02ms], [0.07ms],
   [Rust-GPU compiled], [2.0ms], [2.05ms], [2.2ms],
-  [ConstantPatched], [1.55ms], [1.50ms], [1.58ms],
+  [Patched Runtime], [1.55ms], [1.50ms], [1.58ms],
 )
+
+#let dy_mobile = table(
+    columns: (auto, auto, auto),
+  inset: 7pt,
+  align: horizon,
+  [avg], [min], [max],
+  [0.35ms], [0.37ms], [0.4ms],
+  [11.45ms], [11.45ms], [11.45ms],
+  [13.6ms], [13.65ms], [13.7ms],
+)
+
+
+#stack(grid(gutter: 3pt, rows: 2, columns: 2, "Dedicated Graphics", "Integrated Graphics", dy_dedicated, dy_mobile))
 
 For dynamic patching the runtime does not differ that much to constant replacement. This is to be expected, since ideally the code shouldn't differ at all. Combined with the CPU side testing we show, that it is possible to replace performant GPU code in a timely manor via runtime patching. The actual patching in this specific case has a negelectable overhead of 15μm-20μs without any runtime penalty compared to fully compiled code. The latter part however depends on the system that supplies the patched code.
 
