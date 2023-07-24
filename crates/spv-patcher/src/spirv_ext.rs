@@ -12,6 +12,8 @@ pub trait SpirvExt {
     ///Decorates the given ID.
     fn decorate(&mut self, id: u32, decoration: Decoration);
     fn add_capability(&mut self, capability: Capability);
+    fn remove_capability(&mut self, capability: Capability);
+
     ///Tries to find the assignment instruction for a given name.
     /// Given an `OpName %x name`, tries to return the instruction of `%x = ...`;
     ///
@@ -88,6 +90,20 @@ impl SpirvExt for rspirv::dr::Module {
                 vec![Operand::Capability(capability)],
             ));
         }
+    }
+
+    fn remove_capability(&mut self, capability: Capability) {
+        self.capabilities.retain(|inst| {
+            if let Operand::Capability(c) = inst.operands[0] {
+                if c == capability {
+                    false
+                } else {
+                    true
+                }
+            } else {
+                true
+            }
+        })
     }
 
     fn get_by_name(&self, name: &str) -> Option<&Instruction> {

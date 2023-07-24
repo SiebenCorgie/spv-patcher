@@ -19,7 +19,7 @@ members = [
 #rspirv = "0.11.0+1.5.4"
 rspirv = {git = "https://github.com/gfx-rs/rspirv.git", rev = "ba1f984"}
 thiserror = "1.0"
-spirt = {git = "https://github.com/EmbarkStudios/spirt.git"}
+spirt = {git = "https://github.com/SiebenCorgie/spirt.git", branch = "multi-module-lower"}
 #spirt = {path = "../spirt"}
 log = "0.4"
 ahash = "0.8.3"
