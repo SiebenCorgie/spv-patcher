@@ -17,10 +17,10 @@ use std::{
 mod compute_task;
 ///Constant mutation test. Takes a compute shader and mutates a constant that is added to a buffer.
 mod const_mutate;
-mod constant_replace;
 mod dynamic_replace;
 mod function_finder;
 mod non_uniform;
+mod static_replace;
 mod test_runs;
 
 const BLESSED_FILE: &'static str = "BlessedTests.json";

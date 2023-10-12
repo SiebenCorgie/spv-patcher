@@ -10,14 +10,14 @@
 ///Assingment rewrite of some value by function calling. Only the return type has to match the
 /// rewritten variables type, but arguments have to be routed.
 mod assignment_rewrite;
-mod constant_replace;
 mod dynamic_replace;
 mod enumerate;
 mod function_finder;
+mod static_replace;
 
 pub use assignment_rewrite::AssignmentRewrite;
-pub use constant_replace::ConstantReplace;
 pub use dynamic_replace::{DynamicReplace, RuntimeFunctionSignature, RuntimeReplace};
 pub use enumerate::{FuncDeclaration, FuncEnumerator};
 pub use function_finder::{FuncIdent, FunctionFinder};
 pub use spv_patcher::rspirv;
+pub use static_replace::StaticReplace;

@@ -6,26 +6,26 @@ use patch_function::{
         dr::Operand,
         spirv::{FunctionControl, LinkageType},
     },
-    ConstantReplace,
+    StaticReplace,
 };
 use spv_patcher::{PatcherError, Validator};
 
 use crate::{compute_task::ComputeTask, test_runs::TestRun};
 
 #[repr(C, align(16))]
-struct ConstReplacePush {
+struct StaticReplacePush {
     pub src: ResourceHandle,
     pub dst: ResourceHandle,
     pub wave_size: u32,
     pub pad0: u32,
 }
 
-impl Default for ConstReplacePush {
+impl Default for StaticReplacePush {
     fn default() -> Self {
-        ConstReplacePush {
+        StaticReplacePush {
             src: ResourceHandle::INVALID,
             dst: ResourceHandle::INVALID,
-            wave_size: ConstReplaceTest::BUFSIZE as u32,
+            wave_size: StaticReplaceTest::BUFSIZE as u32,
             pad0: 0,
         }
     }
@@ -33,15 +33,15 @@ impl Default for ConstReplacePush {
 
 const REPLACE_SPV: &'static [u8] = include_bytes!("../resources/no_inline_function.spv");
 
-pub struct ConstReplaceTest {
+pub struct StaticReplaceTest {
     src_data: UploadBuffer<u32>,
     dst_data: DownloadBuffer<u32>,
     //Represents our GPU site test task
-    test_task: ComputeTask<ConstReplacePush, u32>,
-    replacement_patch: ConstantReplace,
+    test_task: ComputeTask<StaticReplacePush, u32>,
+    replacement_patch: StaticReplace,
 }
 
-impl ConstReplaceTest {
+impl StaticReplaceTest {
     const BUFSIZE: usize = 1024;
     //loads the shader
     pub fn load(rmg: &mut marpii_rmg::Rmg) -> Result<Self, PatcherError> {
@@ -56,7 +56,7 @@ impl ConstReplaceTest {
             vec![src_hdl.clone()],
             vec![dst_hdl.clone()],
             Self::BUFSIZE as u32,
-            move |push: &mut PushConstant<ConstReplacePush>, resources, _ctx| {
+            move |push: &mut PushConstant<StaticReplacePush>, resources, _ctx| {
                 push.get_content_mut().src = resources.resource_handle_or_bind(&src_hdl).unwrap();
                 push.get_content_mut().dst = resources.resource_handle_or_bind(&dst_hdl).unwrap();
                 push.get_content_mut().wave_size = Self::BUFSIZE as u32;
@@ -115,10 +115,10 @@ impl ConstReplaceTest {
             builder.module()
         };
 
-        let replacement_patch = ConstantReplace::new(replacement_module, 0)
+        let replacement_patch = StaticReplace::new(replacement_module, 0)
             .map_err(|e| PatcherError::Internal(e.into()))?;
 
-        Ok(ConstReplaceTest {
+        Ok(StaticReplaceTest {
             test_task,
             src_data: src,
             dst_data: dst,
@@ -135,9 +135,9 @@ impl ConstReplaceTest {
     }
 }
 
-impl TestRun for ConstReplaceTest {
+impl TestRun for StaticReplaceTest {
     fn name(&self) -> &'static str {
-        "const_replace"
+        "static_replace"
     }
     fn run(
         &mut self,
@@ -206,7 +206,7 @@ impl TestRun for ConstReplaceTest {
                         {
                             assert!(a == b, "Test failed for {} : {} == {}", idx, a, b);
                         }
-                        log::info!("ConstReplace successful");
+                        log::info!("StaticReplace successful");
                     } else {
                         log::error!("Could not test result, there is no blessed result for it!");
                     }

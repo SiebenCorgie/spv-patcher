@@ -60,7 +60,7 @@ fn main() {
     //dyn_bench.safe_last_as_image = true;
     run_bench(&mut dyn_bench, &mut reporter, &mut rmg, RUN_COUNT);
 
-    let mut const_bench = bench::const_replace::ConstReplaceBench::load(&mut rmg).unwrap();
+    let mut const_bench = bench::static_replace::StaticReplaceBench::load(&mut rmg).unwrap();
     //const_bench.safe_last_as_image = true;
     run_bench(&mut const_bench, &mut reporter, &mut rmg, RUN_COUNT);
 

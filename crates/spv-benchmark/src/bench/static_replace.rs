@@ -6,7 +6,7 @@ use patch_function::{
         dr::Operand,
         spirv::{FunctionControl, LinkageType, LoopControl, StorageClass},
     },
-    ConstantReplace,
+    StaticReplace,
 };
 use spv_patcher::{PatcherError, Validator};
 
@@ -19,20 +19,20 @@ const PATCHED_COMPILED_SPV: &'static [u8] =
     include_bytes!("../../resources/bench_const_replace_mandelbrot.spv");
 
 #[repr(C, align(16))]
-struct ConstReplacePush {
+struct StaticReplacePush {
     pub pad0: ResourceHandle,
     pub dst: ResourceHandle,
     pub width: u32,
     pub height: u32,
 }
 
-impl Default for ConstReplacePush {
+impl Default for StaticReplacePush {
     fn default() -> Self {
-        ConstReplacePush {
+        StaticReplacePush {
             pad0: ResourceHandle::INVALID,
             dst: ResourceHandle::INVALID,
-            width: ConstReplaceBench::RESOLUTION[0],
-            height: ConstReplaceBench::RESOLUTION[1],
+            width: StaticReplaceBench::RESOLUTION[0],
+            height: StaticReplaceBench::RESOLUTION[1],
         }
     }
 }
@@ -43,16 +43,16 @@ impl Default for ConstReplacePush {
 /// Right now we are modifying a simple `-(vec.length())` call to a simple iterative madelbrot set.
 ///
 /// For debugging purpose we can render the final result to an image.
-pub struct ConstReplaceBench {
+pub struct StaticReplaceBench {
     //src_data: UploadBuffer<f32>,
     dst_data: DownloadBuffer<f32>,
     //Represents our GPU site test task
-    bench_task: ComputeTask<ConstReplacePush, f32>,
+    bench_task: ComputeTask<StaticReplacePush, f32>,
     pub safe_last_as_image: bool,
-    replacement_patch: ConstantReplace,
+    replacement_patch: StaticReplace,
 }
 
-impl ConstReplaceBench {
+impl StaticReplaceBench {
     const RESOLUTION: [u32; 2] = [2048, 2048];
 
     ///Loads the shader code as `bench_task`.
@@ -64,7 +64,7 @@ impl ConstReplaceBench {
             vec![],
             vec![dst_hdl.clone()],
             Self::RESOLUTION,
-            move |push: &mut PushConstant<ConstReplacePush>, resources, _ctx| {
+            move |push: &mut PushConstant<StaticReplacePush>, resources, _ctx| {
                 //push.get_content_mut().src = resources.resource_handle_or_bind(&src_hdl).unwrap();
                 push.get_content_mut().dst = resources.resource_handle_or_bind(&dst_hdl).unwrap();
                 push.get_content_mut().width = Self::RESOLUTION[0];
@@ -90,7 +90,7 @@ impl ConstReplaceBench {
             vec![],
             vec![dst_hdl.clone()],
             Self::RESOLUTION,
-            move |push: &mut PushConstant<ConstReplacePush>, resources, _ctx| {
+            move |push: &mut PushConstant<StaticReplacePush>, resources, _ctx| {
                 //push.get_content_mut().src = resources.resource_handle_or_bind(&src_hdl).unwrap();
                 push.get_content_mut().dst = resources.resource_handle_or_bind(&dst_hdl).unwrap();
                 push.get_content_mut().width = Self::RESOLUTION[0];
@@ -307,10 +307,10 @@ impl ConstReplaceBench {
             builder.module()
         };
 
-        let replacement_patch = ConstantReplace::new(replacement_module, 0)
+        let replacement_patch = StaticReplace::new(replacement_module, 0)
             .map_err(|e| PatcherError::Internal(e.into()))?;
 
-        Ok(ConstReplaceBench {
+        Ok(StaticReplaceBench {
             bench_task,
             //src_data: src,
             dst_data: dst,
@@ -328,7 +328,7 @@ impl ConstReplaceBench {
     }
 }
 
-impl Benchmark for ConstReplaceBench {
+impl Benchmark for StaticReplaceBench {
     fn bench_patched_compiled(
         &mut self,
         rmg: &mut marpii_rmg::Rmg,
@@ -479,6 +479,6 @@ impl Benchmark for ConstReplaceBench {
         }
     }
     fn name(&self) -> &str {
-        "ConstReplaceMandelbrot"
+        "StaticReplaceMandelbrot"
     }
 }

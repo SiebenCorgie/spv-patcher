@@ -17,7 +17,7 @@ use crate::function_finder::FuncSignature;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum ConstantReplaceError {
+pub enum StaticReplaceError {
     #[error("No function found for index {0} in the replacement module")]
     InvalidReplacementIndex(usize),
     #[error("SPIRV builder error: {0}")]
@@ -37,7 +37,7 @@ pub enum ConstantReplaceError {
 ///Declares a *whole* spirv module and a function index into the module that will replace a function with the same identification
 /// within a module that is being patched.
 #[derive(Clone)]
-pub struct ConstantReplace {
+pub struct StaticReplace {
     ///Module from which the replacement code is taken
     pub replacement_module: Module,
     ///index into the replacement module's function vector which selects the function that is being replaced.
@@ -47,14 +47,14 @@ pub struct ConstantReplace {
     ident: FuncSignature,
 }
 
-impl ConstantReplace {
+impl StaticReplace {
     pub fn new(
         replacement_module: Module,
         replacement_index: usize,
-    ) -> Result<Self, ConstantReplaceError> {
+    ) -> Result<Self, StaticReplaceError> {
         let ident = {
             let f = replacement_module.functions.get(replacement_index).ok_or(
-                ConstantReplaceError::InvalidReplacementIndex(replacement_index),
+                StaticReplaceError::InvalidReplacementIndex(replacement_index),
             )?;
 
             let return_type = f.def.as_ref().unwrap().result_type.unwrap();
@@ -70,7 +70,7 @@ impl ConstantReplace {
             }
         };
 
-        Ok(ConstantReplace {
+        Ok(StaticReplace {
             replacement_index,
             replacement_module,
             ident,
@@ -79,7 +79,7 @@ impl ConstantReplace {
 
     //Add linking annotation to the dst module. Returns the function-id that
     // was chosen.
-    pub fn allow_linking(&self, dst: &mut Module) -> Result<(), ConstantReplaceError> {
+    pub fn allow_linking(&self, dst: &mut Module) -> Result<(), StaticReplaceError> {
         //NOTE(siebencorgie): For sanity, verify that we do-not have
         // any linkage annotation at-all in the module.
         //
@@ -89,7 +89,7 @@ impl ConstantReplace {
                 log::error!(
                     "Module already has linkage annotation, before adding it to the module!"
                 );
-                return Err(ConstantReplaceError::ExistingLinkingAnnotation);
+                return Err(StaticReplaceError::ExistingLinkingAnnotation);
             }
         }
 
@@ -144,7 +144,7 @@ impl ConstantReplace {
                 "Could not find {}-th function in replacement module. Linking will fail!",
                 self.replacement_index
             );
-            return Err(ConstantReplaceError::InvalidReplacementIndex(
+            return Err(StaticReplaceError::InvalidReplacementIndex(
                 self.replacement_index,
             ));
         };
@@ -190,7 +190,7 @@ impl ConstantReplace {
                         }
                     } else {
                         log::error!("src_arg_ty_table was incomplete, Linking will fail!");
-                        return Err(ConstantReplaceError::InvalidReplacementIndex(
+                        return Err(StaticReplaceError::InvalidReplacementIndex(
                             self.replacement_index,
                         ));
                     }
@@ -207,7 +207,7 @@ impl ConstantReplace {
             log::error!(
                 "Did not find any matching function that could be patched in the source module!"
             );
-            return Err(ConstantReplaceError::SignatureMatchError);
+            return Err(StaticReplaceError::SignatureMatchError);
         }
         if match_list.len() > 1 {
             log::warn!("Found more than one matching function for linking. Using the first one.");
@@ -247,7 +247,7 @@ impl ConstantReplace {
         &self,
         dst: &mut spirt::Module,
         cx: Rc<Context>,
-    ) -> Result<(), ConstantReplaceError> {
+    ) -> Result<(), StaticReplaceError> {
         //TODO: ATM we lower the patched code each time. If we'd make the
         // code private we could do that in a preprocessing step.
         let spv_bytes = self.replacement_module.assemble();
@@ -255,7 +255,7 @@ impl ConstantReplace {
             spirt::Module::lower_from_spv_bytes(cx, bytemuck::cast_slice(&spv_bytes).to_vec())?;
 
         spirt::passes::merge::merge(dst, link_code)
-            .map_err(|e| ConstantReplaceError::MergeError(e))?;
+            .map_err(|e| StaticReplaceError::MergeError(e))?;
         spirt::passes::legalize::structurize_func_cfgs(dst);
         spirt::passes::link::resolve_imports(dst);
 
@@ -282,7 +282,7 @@ impl ConstantReplace {
     }
 }
 
-impl Patch for ConstantReplace {
+impl Patch for StaticReplace {
     fn apply<'a>(
         self,
         mut patcher: spv_patcher::patch::Patcher<'a>,
