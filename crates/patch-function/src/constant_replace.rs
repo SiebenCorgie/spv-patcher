@@ -1,4 +1,4 @@
-use std::io::{BufWriter, Write};
+use std::rc::Rc;
 
 use ahash::AHashMap;
 use spv_patcher::{
@@ -8,6 +8,7 @@ use spv_patcher::{
         dr::{Instruction, Module, Operand},
         spirv::{Capability, Decoration, LinkageType, Op},
     },
+    spirt::{self, Context},
     spirv_ext::SpirvExt,
 };
 
@@ -25,6 +26,12 @@ pub enum ConstantReplaceError {
     IoError(#[from] std::io::Error),
     #[error("Could not parse back linked module. This is probably a spirv-link error: {0}")]
     ParseBack(String),
+    #[error("Could not merge patch code into SPIR-T module")]
+    MergeError(spirt::passes::merge::MergeError),
+    #[error("Module already has linking annotation, which is not supported")]
+    ExistingLinkingAnnotation,
+    #[error("Module has no function that matches the function signature of the replacement_index function.")]
+    SignatureMatchError,
 }
 
 ///Declares a *whole* spirv module and a function index into the module that will replace a function with the same identification
@@ -35,9 +42,6 @@ pub struct ConstantReplace {
     pub replacement_module: Module,
     ///index into the replacement module's function vector which selects the function that is being replaced.
     pub replacement_index: usize,
-
-    ///If true, the temporary, linkable shader files are kept after linking
-    pub keep_temporary_files: bool,
 
     ///function ident of the function that is replaced in the `replacement_module` context.
     ident: FuncSignature,
@@ -69,13 +73,26 @@ impl ConstantReplace {
         Ok(ConstantReplace {
             replacement_index,
             replacement_module,
-            keep_temporary_files: false,
             ident,
         })
     }
 
-    //Merge
-    pub fn allow_linking(&self, dst: &mut Module) {
+    //Add linking annotation to the dst module. Returns the function-id that
+    // was chosen.
+    pub fn allow_linking(&self, dst: &mut Module) -> Result<(), ConstantReplaceError> {
+        //NOTE(siebencorgie): For sanity, verify that we do-not have
+        // any linkage annotation at-all in the module.
+        //
+        // Otherwise the later remove-annotation pass will break that.
+        for ann in dst.annotations.iter() {
+            if let Operand::Decoration(Decoration::LinkageAttributes) = ann.operands[1] {
+                log::error!(
+                    "Module already has linkage annotation, before adding it to the module!"
+                );
+                return Err(ConstantReplaceError::ExistingLinkingAnnotation);
+            }
+        }
+
         //Pass1: find exported function name
         let name = if let Some(f) = self
             .replacement_module
@@ -127,7 +144,9 @@ impl ConstantReplace {
                 "Could not find {}-th function in replacement module. Linking will fail!",
                 self.replacement_index
             );
-            return;
+            return Err(ConstantReplaceError::InvalidReplacementIndex(
+                self.replacement_index,
+            ));
         };
 
         //Pass2: find a function with the same-ish signature, and add the linkage decoration needed for the linker to
@@ -148,7 +167,9 @@ impl ConstantReplace {
             .map(|i| (*i, None))
             .collect::<AHashMap<u32, Option<u32>>>();
 
-        'function_def_iter: for f in dst.functions.iter() {
+        let mut match_list = Vec::with_capacity(1);
+
+        'function_def_iter: for (fidx, f) in dst.functions.iter().enumerate() {
             if f.parameters.len() == self.ident.argument_types.len() {
                 //we do that by pattern matching for now 👀
                 // check if type pattern is the same.
@@ -169,112 +190,95 @@ impl ConstantReplace {
                         }
                     } else {
                         log::error!("src_arg_ty_table was incomplete, Linking will fail!");
-                        return;
+                        return Err(ConstantReplaceError::InvalidReplacementIndex(
+                            self.replacement_index,
+                        ));
                     }
                 }
 
                 //if no continue was called up to this point, decorate this function with the correct call
                 log::info!("Found matching function in dst");
 
-                if !dst.has_extension("Linkage") {
-                    //if needed, add linkage attrib
-                    dst.extensions.push(Instruction::new(
-                        Op::Capability,
-                        None,
-                        None,
-                        vec![Operand::Capability(Capability::Linkage)],
-                    ));
-                }
-                //therefor insert decorations into annotations
-                dst.annotations.push(Instruction::new(
-                    Op::Decorate,
-                    f.def_id(),
-                    None,
-                    vec![
-                        Operand::Decoration(Decoration::LinkageAttributes),
-                        Operand::LiteralString(name.clone()),
-                        Operand::LinkageType(LinkageType::Import),
-                    ],
-                ));
+                match_list.push(fidx);
             }
         }
+
+        if match_list.len() == 0 {
+            log::error!(
+                "Did not find any matching function that could be patched in the source module!"
+            );
+            return Err(ConstantReplaceError::SignatureMatchError);
+        }
+        if match_list.len() > 1 {
+            log::warn!("Found more than one matching function for linking. Using the first one.");
+        }
+
+        //Add linkage if needed
+        if !dst.has_extension("Linkage") {
+            //if needed, add linkage attrib
+            dst.extensions.push(Instruction::new(
+                Op::Capability,
+                None,
+                None,
+                vec![Operand::Capability(Capability::Linkage)],
+            ));
+        }
+
+        let def_id = dst.functions[match_list[0]].def_id();
+        //Add decoration to function's id
+        dst.annotations.push(Instruction::new(
+            Op::Decorate,
+            def_id,
+            None,
+            vec![
+                Operand::Decoration(Decoration::LinkageAttributes),
+                Operand::LiteralString(name.clone()),
+                Operand::LinkageType(LinkageType::Import),
+            ],
+        ));
+
+        //Finally, to keep valid SPIR-V, kill all instructions of function
+        // f
+        dst.functions[match_list[0]].blocks.clear();
+        Ok(())
     }
 
-    fn call_linker(&self, dst: &mut Module) -> Result<(), ConstantReplaceError> {
-        const LINK_DST_FILENAME: &'static str = "dst_linkable.spv";
-        const LINK_PATCH_FILENAME: &'static str = "patch_linkable.spv";
-        const LINK_FINAL_FILENAME: &'static str = "patched.spv";
+    fn call_linker(
+        &self,
+        dst: &mut spirt::Module,
+        cx: Rc<Context>,
+    ) -> Result<(), ConstantReplaceError> {
+        //TODO: ATM we lower the patched code each time. If we'd make the
+        // code private we could do that in a preprocessing step.
+        let spv_bytes = self.replacement_module.assemble();
+        let link_code =
+            spirt::Module::lower_from_spv_bytes(cx, bytemuck::cast_slice(&spv_bytes).to_vec())?;
 
-        let assembled_dst = dst.assemble();
-        let assembled_patch = self.replacement_module.assemble();
-        /*
-                for f in [LINK_DST_FILENAME, LINK_PATCH_FILENAME, LINK_FINAL_FILENAME] {
-                    if std::path::Path::new(f).exists() {
-                        std::fs::remove_file(f).unwrap();
-                    }
-                }
-        */
-        //write both to a file, sadly, the linker can not yet read from stdin.
-        let dst_linkable_file = std::fs::OpenOptions::new()
-            .create(true)
-            .append(false)
-            .write(true)
-            .open(LINK_DST_FILENAME)?;
-        let mut dst_writer = BufWriter::new(dst_linkable_file);
-        dst_writer.write(bytemuck::cast_slice(&assembled_dst))?;
-
-        let patch_linkable_file = std::fs::OpenOptions::new()
-            .create(true)
-            .append(false)
-            .write(true)
-            .open(LINK_PATCH_FILENAME)?;
-        let mut patch_writer = BufWriter::new(patch_linkable_file);
-        patch_writer.write(bytemuck::cast_slice(&assembled_patch))?;
-        dst_writer.flush().unwrap();
-        patch_writer.flush().unwrap();
-
-        //now try to call the linker
-
-        let out = std::process::Command::new("spirv-link")
-            .args([
-                "--verify-ids",
-                "-o",
-                LINK_FINAL_FILENAME,
-                LINK_DST_FILENAME,
-                LINK_PATCH_FILENAME,
-            ])
-            .output();
-
-        //try to read back stdout as the result file/data
-        match out {
-            Ok(r) => {
-                assert!(r.status.success());
-                log::info!("Successfully linked files!");
-            }
-            Err(e) => {
-                log::error!("Failed to link files!\n{}", e);
-                return Err(ConstantReplaceError::IoError(e));
-            }
-        };
-
-        let res_data = std::fs::read(LINK_FINAL_FILENAME).unwrap();
-
-        let module = spv_patcher::rspirv::dr::load_bytes(res_data)
-            .map_err(|e| ConstantReplaceError::ParseBack(e.to_string()))?;
-        *dst = module;
-
-        std::thread::sleep(std::time::Duration::from_millis(10));
-
-        //remove files if we shouldn't keep them
-        if !self.keep_temporary_files {
-            for f in [LINK_DST_FILENAME, LINK_PATCH_FILENAME, LINK_FINAL_FILENAME] {
-                if let Err(e) = std::fs::remove_file(f) {
-                    log::error!("Failed to remove {}: {}", f, e);
-                }
-            }
-        }
+        spirt::passes::merge::merge(dst, link_code)
+            .map_err(|e| ConstantReplaceError::MergeError(e))?;
+        spirt::passes::legalize::structurize_func_cfgs(dst);
+        spirt::passes::link::resolve_imports(dst);
 
         Ok(())
+    }
+
+    //Removes all added linkage annotation, this includes the
+    // Linkage capability as well as the export annotation of the just-linked
+    // function.
+    //
+    // NOTE(siebencorgie): I feel like it should be possible to keep those, but
+    // Vulkan (and possibly more) seem to not like that.
+    fn remove_linkage_annotation(&self, dst: &mut Module) {
+        // TODO(siebencorgie): More robustly remove that annotation (the function id changes
+        // in between passes, so caching is no option).
+        dst.remove_capability(Capability::Linkage);
+        dst.annotations.retain(|ann| {
+            if let Operand::Decoration(Decoration::LinkageAttributes) = ann.operands[1] {
+                false
+            } else {
+                true
+            }
+        })
     }
 }
 
@@ -283,18 +287,31 @@ impl Patch for ConstantReplace {
         self,
         mut patcher: spv_patcher::patch::Patcher<'a>,
     ) -> Result<spv_patcher::patch::Patcher<'a>, spv_patcher::PatcherError> {
-        let spv = patcher.ir_state.as_spirv();
-
         //Right now we do the following:
         //
         // 1. Rewrite `spv` to allow re-linking the target function.
         // 2. Rewrite the patching function in order to be used by the spirv-linker
         // 3. Execute the spirv-linker binary which should produce the merged/linked binary
-        self.allow_linking(spv);
 
-        self.call_linker(spv)
-            .map_err(|e| spv_patcher::PatcherError::Internal(e.into()))?;
+        //First, add linking annotations to our patcher's module
+        {
+            let spv = patcher.ir_state.as_spirv();
+            self.allow_linking(spv)
+                .map_err(|e| spv_patcher::PatcherError::Internal(e.into()))?;
+        }
 
+        //Now lower to SPIR-T and call SPIR-T's merge and link pass
+        {
+            let (spirt, ctx) = patcher.ir_state.as_spirt();
+            self.call_linker(spirt, ctx)
+                .map_err(|e| spv_patcher::PatcherError::Internal(e.into()))?;
+        }
+
+        //finally lift back to spirv and remove linkage annotation
+        {
+            let spv = patcher.ir_state.as_spirv();
+            self.remove_linkage_annotation(spv);
+        }
         Ok(patcher)
     }
 }

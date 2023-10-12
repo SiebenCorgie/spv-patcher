@@ -59,6 +59,7 @@ impl IrState {
     ///Returns current state as SpirV-IR. Might translate if needed.
     pub fn as_spirv(&mut self) -> &mut rspirv::dr::Module {
         //Return module
+        self.into_spirv();
         if let IrState::SpirV(s) = self {
             s
         } else {
