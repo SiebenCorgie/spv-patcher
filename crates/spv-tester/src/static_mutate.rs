@@ -22,20 +22,20 @@ impl Default for ConstMutPush {
         ConstMutPush {
             src: ResourceHandle::INVALID,
             dst: ResourceHandle::INVALID,
-            buffer_size: ConstMutateTest::BUFSIZE as u32,
+            buffer_size: StaticMutateTest::BUFSIZE as u32,
             pad0: 0xdeadbeef,
         }
     }
 }
 
-pub struct ConstMutateTest {
+pub struct StaticMutateTest {
     //Represents our GPU site test task
     test_task: ComputeTask<ConstMutPush, u32>,
     src: UploadBuffer<u32>,
     dst: DownloadBuffer<u32>,
 }
 
-impl ConstMutateTest {
+impl StaticMutateTest {
     const BUFSIZE: usize = 64;
     //loads the shader
     pub fn load(rmg: &mut marpii_rmg::Rmg) -> Result<Self, PatcherError> {
@@ -58,7 +58,7 @@ impl ConstMutateTest {
         )
         .unwrap();
 
-        Ok(ConstMutateTest {
+        Ok(StaticMutateTest {
             test_task,
             src,
             dst,
@@ -104,9 +104,9 @@ impl ConstMutateTest {
     }
 }
 
-impl TestRun for ConstMutateTest {
+impl TestRun for StaticMutateTest {
     fn name(&self) -> &'static str {
-        "ConstMutateTest"
+        "StaticMutateTest"
     }
     fn run(
         &mut self,

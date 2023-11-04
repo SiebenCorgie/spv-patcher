@@ -3,9 +3,8 @@
 use std::fmt::{Debug, Display};
 
 use crate::{
-    const_mutate::ConstMutateTest, dynamic_replace::DynReplaceTest,
-    function_finder::FuncFinderTest, non_uniform::NonUniformTest,
-    static_replace::StaticReplaceTest, BlessedDB,
+    dynamic_replace::DynReplaceTest, function_finder::FuncFinderTest, non_uniform::NonUniformTest,
+    static_mutate::StaticMutateTest, static_replace::StaticReplaceTest, BlessedDB,
 };
 use marpii_rmg::{Rmg, RmgError};
 use marpii_rmg_tasks::{NoTaskError, TaskError};
@@ -38,11 +37,11 @@ pub trait TestRun {
 ///Tries to parse a `name` to a test run.
 pub fn parse_test_run(name: &str, rmg: &mut Rmg) -> Option<Box<dyn TestRun>> {
     match name {
-        "const_mutate" => Some(Box::new(ConstMutateTest::load(rmg).unwrap())),
+        "static_mutate" => Some(Box::new(StaticMutateTest::load(rmg).unwrap())),
         "non_uniform_patch" => Some(Box::new(NonUniformTest::load(rmg).unwrap())),
         "function_finder" => Some(Box::new(FuncFinderTest::new())),
         "dyn_replace" => Some(Box::new(DynReplaceTest::load(rmg).unwrap())),
-        "const_replace" => Some(Box::new(StaticReplaceTest::load(rmg).unwrap())),
+        "static_replace" => Some(Box::new(StaticReplaceTest::load(rmg).unwrap())),
         _ => {
             log::error!("No test named \"{}\" found!", name);
             None

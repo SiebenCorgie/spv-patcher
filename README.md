@@ -40,7 +40,7 @@ The tools `spirv-val` and `spirv-dis` must be accessible in `$PATH` for all test
 To run all tests execute
 
 ``` shell
-cargo run --bin spv-tester const_mutate non_uniform_patch const_replace dyn_replace function_finder
+cargo run --bin spv-tester static_mutate non_uniform_patch static_replace dyn_replace function_finder
 ```
 
 You might want to bless your results if you are sure they are correct by appending `bless` to the sequence.
