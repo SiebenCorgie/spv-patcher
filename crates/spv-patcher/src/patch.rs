@@ -15,9 +15,11 @@
 
 //Test patch
 // TODO: Remove in favor of *correct* patches
+mod memory_model;
 mod mutate_constant;
 
 use crate::PatcherError;
+pub use memory_model::MemoryModel;
 pub use mutate_constant::MutateConstant;
 use rspirv::binary::Assemble;
 use std::rc::Rc;

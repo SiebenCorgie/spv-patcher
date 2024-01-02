@@ -35,15 +35,15 @@ pub struct Module {
 impl Module {
     pub fn new(spirv_binary: Vec<u8>) -> Result<Self, PatcherError> {
         let spv_mod = rspirv::dr::load_bytes(&spirv_binary)?;
+        /*
+                if spv_mod.entry_points.len() > 1 {
+                    return Err(PatcherError::MultipleEntryPoints);
+                }
 
-        if spv_mod.entry_points.len() > 1 {
-            return Err(PatcherError::MultipleEntryPoints);
-        }
-
-        if spv_mod.entry_points.len() == 0 {
-            return Err(PatcherError::NoEntryPoint);
-        }
-
+                if spv_mod.entry_points.len() == 0 {
+                    return Err(PatcherError::NoEntryPoint);
+                }
+        */
         Ok(Module {
             module_binary: spirv_binary,
             spv_mod,
