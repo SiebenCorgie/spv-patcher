@@ -22,11 +22,13 @@ pub enum StaticReplaceError {
     InvalidReplacementIndex(usize),
     #[error("SPIRV builder error: {0}")]
     BuilderError(#[from] spv_patcher::rspirv::dr::Error),
+    #[error("SPIRV parsing error: {0}")]
+    SPIRVParseError(#[from] spv_patcher::rspirv::binary::ParseState),
     #[error("IO Error: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Could not parse back linked module. This is probably a spirv-link error: {0}")]
     ParseBack(String),
-    #[error("Could not merge patch code into SPIR-T module")]
+    #[error("Could not merge patch code into SPIR-T module: {0:?}")]
     MergeError(spirt::passes::merge::MergeError),
     #[error("Module already has linking annotation, which is not supported")]
     ExistingLinkingAnnotation,
@@ -48,6 +50,14 @@ pub struct StaticReplace {
 }
 
 impl StaticReplace {
+    pub fn new_from_bytes(
+        replacement_module: &[u8],
+        replacement_index: usize,
+    ) -> Result<Self, StaticReplaceError> {
+        let module = spv_patcher::rspirv::dr::load_bytes(replacement_module)?;
+        Self::new(module, replacement_index)
+    }
+
     pub fn new(
         replacement_module: Module,
         replacement_index: usize,
