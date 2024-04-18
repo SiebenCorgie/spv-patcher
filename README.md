@@ -9,6 +9,8 @@ SPIR-V patching utility operating on the IR level to patch new code, or speciali
 </div>
 
 
+**NOTE: Some of the GPU tests are currently broken.**
+
 
 All in one SPIR-V analyser, patcher and verifyer. Focuses on speed to make partial runtime SPIR-V patching possible.
 

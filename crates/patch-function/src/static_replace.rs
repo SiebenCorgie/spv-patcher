@@ -34,6 +34,8 @@ pub enum StaticReplaceError {
     ExistingLinkingAnnotation,
     #[error("Module has no function that matches the function signature of the replacement_index function.")]
     SignatureMatchError,
+    #[error("There was no function marked as \"export\" with the name \"{0}\" ")]
+    NoFunctionWithName(String),
 }
 
 ///Declares a *whole* spirv module and a function index into the module that will replace a function with the same identification
@@ -50,6 +52,22 @@ pub struct StaticReplace {
 }
 
 impl StaticReplace {
+    pub fn new_for_function(
+        replacement_module: &[u8],
+        function_name: &str,
+    ) -> Result<Self, StaticReplaceError> {
+        let module = spv_patcher::rspirv::dr::load_bytes(replacement_module)?;
+        let function_index = if let Some(idx) = Self::find_function_index(&module, function_name) {
+            idx
+        } else {
+            return Err(StaticReplaceError::NoFunctionWithName(
+                function_name.to_owned(),
+            ));
+        };
+        println!("{} as export", function_index);
+        Self::new(module, function_index)
+    }
+
     pub fn new_from_bytes(
         replacement_module: &[u8],
         replacement_index: usize,
@@ -145,7 +163,7 @@ impl StaticReplace {
             }
 
             if !is_marked_link {
-                log::warn!("While we found a linkage function (with name {}), it is not marked *export*. Continuing ...", linkage_name);
+                log::warn!("While we found a linkage function (with name \"{}\"), it is not marked *export*. Continuing ...", linkage_name);
             }
             log::info!("Found linkage function: {}", linkage_name);
             linkage_name
@@ -207,7 +225,7 @@ impl StaticReplace {
                 }
 
                 //if no continue was called up to this point, decorate this function with the correct call
-                log::info!("Found matching function in dst");
+                log::error!("Found matching function in dst as {fidx}");
 
                 match_list.push(fidx);
             }
@@ -235,6 +253,7 @@ impl StaticReplace {
         }
 
         let def_id = dst.functions[match_list[0]].def_id();
+        println!("Overiding {def_id:?} as import");
         //Add decoration to function's id
         dst.annotations.push(Instruction::new(
             Op::Decorate,
@@ -264,6 +283,16 @@ impl StaticReplace {
         let link_code =
             spirt::Module::lower_from_spv_bytes(cx, bytemuck::cast_slice(&spv_bytes).to_vec())?;
 
+        println!(
+            "BASE:\n{}, DST\n{}\n",
+            spirt::print::Plan::for_module(&dst)
+                .pretty_print()
+                .to_string(),
+            spirt::print::Plan::for_module(&link_code)
+                .pretty_print()
+                .to_string()
+        );
+
         spirt::passes::merge::merge(dst, link_code)
             .map_err(|e| StaticReplaceError::MergeError(e))?;
         spirt::passes::legalize::structurize_func_cfgs(dst);
@@ -287,6 +316,40 @@ impl StaticReplace {
                 false
             } else {
                 true
+            }
+        })
+    }
+
+    ///Helper function, that searches for a function which is marked as `export` and
+    /// returns its index
+    fn find_function_index(module: &Module, name: &str) -> Option<usize> {
+        let function_id = module.annotations.iter().find_map(|inst| {
+            if inst.class.opcode == Op::Decorate {
+                println!("Inst: {inst:?}");
+                if inst.operands[3] == Operand::LinkageType(LinkageType::Export) {
+                    if let Operand::LiteralString(s) = &inst.operands[2] {
+                        if s == name {
+                            Some(inst.operands[0].unwrap_id_ref())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })?;
+
+        //now map the id to an index
+        module.functions.iter().enumerate().find_map(|(idx, func)| {
+            if func.def_id() == Some(function_id) {
+                Some(idx)
+            } else {
+                None
             }
         })
     }

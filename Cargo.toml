@@ -6,18 +6,20 @@ members = [
 "crates/patch-binding-location-matching",
 "crates/patch-decorate-nonuniform",
 "crates/patch-function",
+"crates/patch-link",
 "crates/vulkan-patchable-pipeline",
-"crates/spv-tester/resources/no_inline_function",
-"crates/spv-tester/resources/rust_shader_builder",
-"crates/spv-benchmark/resources/benchmark_shader_builder",
-"crates/spv-benchmark/resources/bench_const_replace",
-"crates/spv-benchmark/resources/bench_const_replace_mandelbrot",
+#"crates/spv-tester/resources/no_inline_function",
+#"crates/spv-tester/resources/rust_shader_builder",
+#"crates/spv-benchmark/resources/benchmark_shader_builder",
+#"crates/spv-benchmark/resources/bench_const_replace",
+#"crates/spv-benchmark/resources/bench_const_replace_mandelbrot",
 ]
 
+resolver = "2"
 
 [workspace.dependencies]
-#rspirv = "0.11.0+1.5.4"
-rspirv = {git = "https://github.com/gfx-rs/rspirv.git", rev = "ba1f984"}
+rspirv = "0.12"
+#rspirv = {git = "https://github.com/gfx-rs/rspirv.git", rev = "ba1f984"}
 thiserror = "1.0"
 spirt = {git = "https://github.com/SiebenCorgie/spirt.git", branch = "multi-module-lower"}
 #spirt = {path = "../spirt"}
@@ -31,14 +33,15 @@ smallvec = "1.10"
 image = "0.24"
 colorgrad = "0.6.2"
 plotters = "0.3.5"
-
+#spirv-linker = "0.1"
+spirv-linker = {git = "https://github.com/SiebenCorgie/spirv-linker.git", branch = "update-rspirv"}
 #our vulkan runtime
 marpii = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg-shared = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg-tasks = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg-task-shared = {git = "https://gitlab.com/tendsinmende/marpii.git"}
-spirv-builder = { git = "https://github.com/LykenSol/rust-gpu", rev = "d78df7e40f860efe85ef369fed10da2f2940bb70" }
+spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", rev = "83f8c72" }
 
 #marpii = {path = "../../graphics/marpii/crates/marpii"}
 #marpii-rmg = {path = "../../graphics/marpii/crates/marpii-rmg"}
