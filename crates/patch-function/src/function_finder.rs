@@ -1,8 +1,8 @@
 use smallvec::SmallVec;
 use spv_patcher::{
     rspirv::{
-        dr::{Function, Instruction, Module},
-        spirv::Op,
+        dr::{Function, Instruction, Module, Operand},
+        spirv::{Op, Decoration},
     },
     spirv_ext::SpirvExt,
 };
@@ -112,6 +112,38 @@ impl FunctionFinder {
                                     log::warn!("Debug name is not exactly the same, but similar, still using it. Expected: {} found {}", name, dbg_name);
                                     results.push(inst.clone());
                                 }
+                            }
+                        } else {
+                            //check if we can find a import/export decoration with that name
+                            for ann in spirv.annotations.iter() {
+
+                                
+                                match (
+                                    ann.class.opcode,
+                                    ann.operands.get(0),
+                                    ann.operands.get(1),
+                                    ann.operands.get(2),
+                                    ann.operands.get(3),
+                                ) {
+                                    (
+                                        Op::Decorate,
+                                        Some(Operand::IdRef(fid)),
+                                        Some(Operand::Decoration(Decoration::LinkageAttributes)),
+                                        Some(Operand::LiteralString(s)),
+                                        Some(Operand::LinkageType(_any)),
+                                    ) => {
+                                        println!("Found LinkageAnnotation: {ann:?}");
+                                        if s == name
+                                            && *fid == named_id
+                                        {
+                                            log::info!(
+                                                "Found function based on linkage name {name}"
+                                            );
+                                            results.push(inst.clone());
+                                        }
+                                    },
+                                    _ => {}
+                                }                         
                             }
                         }
                     }

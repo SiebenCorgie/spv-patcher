@@ -35,6 +35,7 @@ colorgrad = "0.6.2"
 plotters = "0.3.5"
 #spirv-linker = "0.1"
 spirv-linker = {git = "https://github.com/SiebenCorgie/spirv-linker.git", branch = "update-rspirv"}
+#spirv-linker = {path = "../spirv-linker"}
 #our vulkan runtime
 marpii = {git = "https://gitlab.com/tendsinmende/marpii.git"}
 marpii-rmg = {git = "https://gitlab.com/tendsinmende/marpii.git"}

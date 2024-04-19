@@ -115,11 +115,21 @@ impl<'module> Patcher<'module> {
         to_apply.apply(self)
     }
 
+    pub fn unwrap_module(mut self) -> rspirv::dr::Module{
+        self.ir_state.as_spirv().clone()
+    }
+
     ///Assembles the patched spriv code. Can be directly loaded into a OpenCL or OpenGL pipeline.
     pub fn assemble(self) -> Vec<u32> {
         match self.ir_state {
             IrState::SpirT { ctx: _, module } => module.lift_to_spv_module_emitter().unwrap().words,
             IrState::SpirV(spv) => spv.assemble(),
         }
+    }
+
+    pub fn assemble_bytes(self) -> Vec<u8>{
+        let vecu32 = self.assemble();
+        //NOTE: for some reason the cast_vec does not work
+        bytemuck::cast_slice(&vecu32).to_vec()
     }
 }
