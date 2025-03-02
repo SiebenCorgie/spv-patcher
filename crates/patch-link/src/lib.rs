@@ -38,28 +38,27 @@ pub struct Linker {
     pub is_result_library: bool,
 }
 
-impl Linker{
-    pub fn new_for_bytes(byte: &[u8]) -> Self{
-        Linker{
-             linkage_module: spv_patcher::rspirv::dr::load_bytes(byte).unwrap(),
-             is_result_library: false
+impl Linker {
+    pub fn new_for_bytes(byte: &[u8]) -> Self {
+        Linker {
+            linkage_module: spv_patcher::rspirv::dr::load_bytes(byte).unwrap(),
+            is_result_library: false,
         }
-        
     }
 }
 
 impl Patch for Linker {
     fn apply<'a>(
-        mut self,
-        mut patcher: spv_patcher::patch::Patcher<'a>,
+        self,
+        patcher: spv_patcher::patch::Patcher<'a>,
     ) -> Result<spv_patcher::patch::Patcher<'a>, spv_patcher::PatcherError> {
         /* TODO: Write our own linker, cause all the other linkers seem
                  to be broken as well :((
-        use patch_function::rspirv::binary::Assemble;                
+        use patch_function::rspirv::binary::Assemble;
         let new_module = {
             let spvmodule = patcher.ir_state.as_spirv();
 
-            
+
             let spvmod = spvmodule.assemble();
             let as_byte: Vec<u8> = bytemuck::cast_slice(&spvmod).to_vec();
             std::fs::write("src_module.spv", as_byte);
@@ -67,8 +66,8 @@ impl Patch for Linker {
             let spvmod = self.linkage_module.assemble();
             let as_byte: Vec<u8> = bytemuck::cast_slice(&spvmod).to_vec();
             std::fs::write("link_module.spv", as_byte);
-            
-          /*  
+
+          /*
             //just call the linker, assuming there is something to link
             let new_module = spirv_linker::link(
                 &mut [spvmodule, &mut self.linkage_module],
@@ -184,18 +183,28 @@ impl Patch for MakeFunctionImport {
 
         //As a touchup, if the module does not contain the link-capability, add it
         let mut is_linkable = false;
-        for cap in &spv.capabilities{
-            match (cap.class.opcode, cap.operands.get(0)){
-                (Op::Capability, Some(Operand::Capability(spv_patcher::rspirv::spirv::Capability::Linkage))) => {
+        for cap in &spv.capabilities {
+            match (cap.class.opcode, cap.operands.get(0)) {
+                (
+                    Op::Capability,
+                    Some(Operand::Capability(spv_patcher::rspirv::spirv::Capability::Linkage)),
+                ) => {
                     is_linkable = true;
-                },
+                }
                 _ => {}
             }
         }
 
-        if !is_linkable{
+        if !is_linkable {
             log::warn!("Source module had no linking capability. Adding it...");
-            spv.capabilities.push(Instruction::new(Op::Capability, None, None, vec![Operand::Capability(spv_patcher::rspirv::spirv::Capability::Linkage)]));
+            spv.capabilities.push(Instruction::new(
+                Op::Capability,
+                None,
+                None,
+                vec![Operand::Capability(
+                    spv_patcher::rspirv::spirv::Capability::Linkage,
+                )],
+            ));
         }
 
         Ok(patcher)

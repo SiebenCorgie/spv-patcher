@@ -1,18 +1,19 @@
 [workspace]
 members = [
-"crates/spv-patcher",
-"crates/spv-tester",
-"crates/spv-benchmark",
-"crates/patch-binding-location-matching",
-"crates/patch-decorate-nonuniform",
-"crates/patch-function",
-"crates/patch-link",
-"crates/vulkan-patchable-pipeline",
-#"crates/spv-tester/resources/no_inline_function",
-#"crates/spv-tester/resources/rust_shader_builder",
-#"crates/spv-benchmark/resources/benchmark_shader_builder",
-#"crates/spv-benchmark/resources/bench_const_replace",
-#"crates/spv-benchmark/resources/bench_const_replace_mandelbrot",
+    "crates/spv-patcher",
+    "crates/spv-tester",
+    "crates/spv-benchmark",
+    "crates/patch-binding-location-matching",
+    "crates/patch-decorate-nonuniform",
+    "crates/patch-function",
+    "crates/patch-link",
+    "crates/vulkan-patchable-pipeline",
+    "crates/patch-strip-debug",
+    #"crates/spv-tester/resources/no_inline_function",
+    #"crates/spv-tester/resources/rust_shader_builder",
+    #"crates/spv-benchmark/resources/benchmark_shader_builder",
+    #"crates/spv-benchmark/resources/bench_const_replace",
+    #"crates/spv-benchmark/resources/bench_const_replace_mandelbrot",
 ]
 
 resolver = "2"
@@ -21,7 +22,7 @@ resolver = "2"
 rspirv = "0.12"
 #rspirv = {git = "https://github.com/gfx-rs/rspirv.git", rev = "ba1f984"}
 thiserror = "1.0"
-spirt = {git = "https://github.com/SiebenCorgie/spirt.git", branch = "multi-module-lower"}
+spirt = { git = "https://github.com/SiebenCorgie/spirt.git", branch = "multi-module-lower" }
 #spirt = {path = "../spirt"}
 log = "0.4"
 ahash = "0.8.3"
@@ -34,14 +35,14 @@ image = "0.24"
 colorgrad = "0.6.2"
 plotters = "0.3.5"
 #spirv-linker = "0.1"
-spirv-linker = {git = "https://github.com/SiebenCorgie/spirv-linker.git", branch = "update-rspirv"}
+spirv-linker = { git = "https://github.com/SiebenCorgie/spirv-linker.git", branch = "update-rspirv" }
 #spirv-linker = {path = "../spirv-linker"}
 #our vulkan runtime
-marpii = {git = "https://gitlab.com/tendsinmende/marpii.git"}
-marpii-rmg = {git = "https://gitlab.com/tendsinmende/marpii.git"}
-marpii-rmg-shared = {git = "https://gitlab.com/tendsinmende/marpii.git"}
-marpii-rmg-tasks = {git = "https://gitlab.com/tendsinmende/marpii.git"}
-marpii-rmg-task-shared = {git = "https://gitlab.com/tendsinmende/marpii.git"}
+marpii = { git = "https://gitlab.com/tendsinmende/marpii.git" }
+marpii-rmg = { git = "https://gitlab.com/tendsinmende/marpii.git" }
+marpii-rmg-shared = { git = "https://gitlab.com/tendsinmende/marpii.git" }
+marpii-rmg-tasks = { git = "https://gitlab.com/tendsinmende/marpii.git" }
+marpii-rmg-task-shared = { git = "https://gitlab.com/tendsinmende/marpii.git" }
 spirv-builder = { git = "https://github.com/EmbarkStudios/rust-gpu", rev = "83f8c72" }
 
 #marpii = {path = "../../graphics/marpii/crates/marpii"}
